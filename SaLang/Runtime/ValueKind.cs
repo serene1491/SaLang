@@ -7,5 +7,6 @@ public enum ValueKind
     Table,
     Function,
     Nil,
-    Error
+    Error,
+    Bool
 }

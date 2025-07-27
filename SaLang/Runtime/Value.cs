@@ -8,10 +8,10 @@ public readonly struct Value
     public readonly ValueKind Kind;
     public readonly double?        Number;
     public readonly string         String;
-    public readonly bool?           Bool;
-    public readonly Dictionary<string,Value> Table;
+    public readonly bool?          Bool;
     public readonly FuncValue      Func;
-    public readonly Error? Error;
+    public readonly Error?         Error;
+    public readonly Dictionary<string,Value> Table;
 
     private Value(ValueKind kind,
                   double? number = null,
