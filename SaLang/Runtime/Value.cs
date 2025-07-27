@@ -3,8 +3,6 @@ using SaLang.Analyzers;
 using SaLang.Common;
 namespace SaLang.Runtime;
 
-public enum ValueKind { Number, String, Table, Function, Nil, Error }
-
 public readonly struct Value
 {
     public readonly ValueKind Kind;

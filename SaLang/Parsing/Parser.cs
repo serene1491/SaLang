@@ -13,9 +13,8 @@ public class Parser
     private int cur = 0;
 
     public Parser(string sourceFile = "<memory>")
-    {
+    =>
         _sourceFile = sourceFile;
-    }
 
     private Token Curr => cur < _tokens.Count ? _tokens[cur] : _tokens[^1];
 
@@ -34,19 +33,15 @@ public class Parser
         _tokens = tokens;
         cur = 0;
         var prog = new ProgramNode();
-        while (!Match(TokenType.EOF))
-            prog.Stmts.Add(ParseStmt());
+        while (!Match(TokenType.EOF)) prog.Stmts.Add(ParseStmt());
         return prog;
     }
 
     private Ast ParseStmt()
     {
-        if (Match(TokenType.Keyword, "var"))
-            return ParseVar();
-        if (Match(TokenType.Keyword, "function"))
-            return ParseFunc();
-        if (Match(TokenType.Keyword, "return"))
-            return ParseReturn();
+        if (Match(TokenType.Keyword, "var"))      return ParseVar();
+        if (Match(TokenType.Keyword, "function")) return ParseFunc();
+        if (Match(TokenType.Keyword, "return"))   return ParseReturn();
 
         var expr = ParseExpr();
         if (Match(TokenType.Keyword, "as"))
@@ -163,13 +158,9 @@ public class Parser
     {
         Ast expr;
         if (Match(TokenType.Number))
-        {
             expr = new LiteralNumber { Value = double.Parse(_tokens[cur - 1].Lexeme) };
-        }
         else if (Match(TokenType.String))
-        {
             expr = new LiteralString { Value = _tokens[cur - 1].Lexeme };
-        }
         else if (Match(TokenType.Identifier))
         {
             string name = _tokens[cur - 1].Lexeme;
@@ -200,9 +191,7 @@ public class Parser
             Match(TokenType.Symbol, ")");
         }
         else
-        {
             throw new Exception($"Syntax error at {Curr.Lexeme}");
-        }
 
         while (Match(TokenType.Symbol, "("))
         {
@@ -239,9 +228,7 @@ public class Parser
                 depth--;
             }
             else
-            {
                 body.Add(ParseStmt());
-            }
         }
 
         return body;

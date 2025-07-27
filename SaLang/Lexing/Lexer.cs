@@ -35,7 +35,11 @@ public class Lexer
         int st = i, c0 = col;
         while (char.IsLetterOrDigit(Curr) || Curr == '_') Advance();
         var lex = src[st..i];
-        var type = (lex == "var" || lex == "function" || lex == "as" || lex == "do" || lex == "end" || lex == "return") ? TokenType.Keyword : TokenType.Identifier;
+        var type = (
+            lex == "var" || lex == "function" || lex == "as"     ||
+            lex == "do"  || lex == "end"      || lex == "return" ||
+            lex == "so"  || lex == "not"
+        ) ? TokenType.Keyword : TokenType.Identifier;
         tokens.Add(new Token(type, lex, line, c0));
     }
     private void ReadNumber()
