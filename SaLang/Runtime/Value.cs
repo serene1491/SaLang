@@ -8,6 +8,7 @@ public readonly struct Value
     public readonly ValueKind Kind;
     public readonly double?        Number;
     public readonly string         String;
+    public readonly bool?           Bool;
     public readonly Dictionary<string,Value> Table;
     public readonly FuncValue      Func;
     public readonly Error? Error;
@@ -15,6 +16,7 @@ public readonly struct Value
     private Value(ValueKind kind,
                   double? number = null,
                   string str = null,
+                  bool? boolean = null,
                   Dictionary<string,Value> tbl = null,
                   FuncValue fn = null,
                   Error? error = null)
@@ -22,24 +24,29 @@ public readonly struct Value
         Kind          = kind;
         Number        = number;
         String        = str;
+        Bool          = boolean;
         Table         = tbl;
         Func          = fn;
         Error         = error;
     }
-
-    public static Value FromNumber(double n)        
-        => new Value(ValueKind.Number, number:n);
+    
+    #region  Factory
+    public static Value FromNumber(double n)
+        => new Value(ValueKind.Number, number: n);
     public static Value FromString(string s)        
         => new Value(ValueKind.String, str:s);
-    public static Value FromTable(Dictionary<string,Value> t) 
-        => new Value(ValueKind.Table, tbl:t);
+    public static Value FromBool(bool b)        
+        => new Value(ValueKind.Bool, boolean: b);
+    public static Value FromTable(Dictionary<string, Value> t)
+        => new Value(ValueKind.Table, tbl: t);
     public static Value FromFunc(FuncValue f)        
         => new Value(ValueKind.Function, fn:f);
     public static Value Nil()                      
         => new Value(ValueKind.Nil);
     public static Value FromError(Error error)
         => new Value(ValueKind.Error, error: error);
-    
+    #endregion
+
     public bool IsError => Kind == ValueKind.Error;
 
     public override string ToString()
@@ -48,10 +55,11 @@ public readonly struct Value
         {
           ValueKind.Number   => Number.Value.ToString(),
           ValueKind.String   => String,
+          ValueKind.Bool     => Bool?.ToString() ?? "nil bool",
           ValueKind.Table    => "table",
           ValueKind.Function => "function",
           ValueKind.Nil      => "nil",
-          ValueKind.Error    => Error.Value.Build() ?? "<null ValueKind.Error>", // unsafe
+          ValueKind.Error    => Error?.Build() ?? "<null ValueKind.Error>",
           _                  => "<?>"
         };
     }

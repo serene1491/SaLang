@@ -14,6 +14,10 @@ public class Interpreter
     private readonly Environment globals = new();
     private Environment env;
     private readonly Stack<TraceFrame> callStack = new();
+    private static bool IsTruthy(Value v)
+        => !(v.IsError || v.Kind == ValueKind.Nil
+                || v.Kind == ValueKind.Bool && v.Bool == true)
+            || v.Number > 0; 
 
     public Interpreter()
     {
