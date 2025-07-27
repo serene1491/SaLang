@@ -1,4 +1,4 @@
-namespace SaLang.Syntax;
+namespace SaLang.Common;
 
 /// <summary>
 /// Represents a source location for error reporting and diagnostics.

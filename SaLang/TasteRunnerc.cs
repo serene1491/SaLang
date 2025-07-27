@@ -30,9 +30,7 @@ public static class TestRunner
                 if (result.IsError)
                 {
                     Console.WriteLine($"❌ Bitter {Path.GetFullPath(file)}:");
-                    Console.WriteLine($"{result.ErrorMessage}");
-                    foreach (var frame in result.ErrorStack)
-                        Console.WriteLine($"    at {frame.FunctionName} in {frame.File}:{frame.Line}");
+                    Console.WriteLine($"{result}");
                     continue;
                 }
 

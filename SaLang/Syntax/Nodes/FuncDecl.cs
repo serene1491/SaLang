@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using SaLang.Common;
 namespace SaLang.Syntax.Nodes;
 
 public class FuncDecl : Ast

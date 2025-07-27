@@ -1,6 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using SaLang.Analyzers;
+using SaLang.Analyzers.Runtime;
+using SaLang.Common;
 using SaLang.Lexing;
 using SaLang.Parsing;
 using SaLang.Syntax.Nodes;
@@ -89,13 +92,20 @@ public class Interpreter
             var obj = args.Count > 0 ? args[0] : Value.Nil();
             if (obj.String != null) return Value.FromNumber(obj.String.Length);
             if (obj.Table != null) return Value.FromNumber(obj.Table.Count);
-            return Value.Error("len() expects a string or table", [.. callStack]);
+
+            return Value.FromError(new Error(
+                ErrorCode.SemanticInvalidArguments, errorStack: [.. callStack],
+                args: ["len()", "string | table", args[0]]
+            ));
         });
 
         AddBuiltin("require", args =>
         {
             if (args.Count == 0 || args[0].String == null)
-                return Value.Error("require() expects a module name string", [.. callStack]);
+                return Value.FromError(new Error(
+                    ErrorCode.SemanticInvalidArguments, errorStack: [.. callStack],
+                    args: ["require()", "string", args[0]]
+                ));
             string moduleName = args[0].String!;
             
             try{
@@ -107,7 +117,10 @@ public class Interpreter
             string fullPath = Path.GetFullPath(filename);
 
             if (!File.Exists(fullPath))
-                return Value.Error($"Module '{moduleName}' not found at '{fullPath}'", [.. callStack]);
+                return Value.FromError(new Error(
+                    ErrorCode.IOFileNotFound, errorStack: [.. callStack],
+                    args: [fullPath]
+                ));
             string source = File.ReadAllText(filename);
 
             var tokens = new Lexer(source).Tokenize();
@@ -118,7 +131,10 @@ public class Interpreter
             if (result.IsError)
                 return result;
             if (result.Kind != ValueKind.Table)
-                return Value.Error($"Module '{moduleName}' must return a table");
+                return Value.FromError(new Error(
+                    ErrorCode.IOReadError, errorStack: [.. callStack],
+                    args: [result.Kind == ValueKind.Error? result : "Expected an table return."]
+                ));
 
             return Value.FromTable(result.Table);
 
@@ -142,7 +158,7 @@ public class Interpreter
         return Value.Nil(); // Natural end of flow
     }
 
-    private ExecResult ExecStmt(Ast node)
+    private RuntimeResult ExecStmt(Ast node)
     {
         Value val;
         switch (node)
@@ -162,19 +178,19 @@ public class Interpreter
             case ReturnStmt rs:
                 var rv    = EvalExpr(rs.Expr);
                 if (rv.IsError)
-                    return ExecResult.Error(rv);
-                return ExecResult.Return(rv);
+                    return RuntimeResult.Error(rv);
+                return RuntimeResult.Return(rv);
             default:
-                return ExecResult.Error(Value.Error(
-                    $"Unknown statement {node.GetType().Name}", 
-                    [.. callStack]
-                ));
+                return RuntimeResult.Error(Value.FromError(new Error(
+                    ErrorCode.InternalUnsupportedExpressionType, errorStack: [.. callStack],
+                    args: [$"statement {node.GetType().Name}"]
+                )));
         }
 
         if (val.IsError)
-            return ExecResult.Error(val);
+            return RuntimeResult.Error(val);
 
-        return ExecResult.Normal(val);
+        return RuntimeResult.Normal(val);
     }
 
     private Value ExecVar(VarDeclaration vd)
@@ -214,7 +230,7 @@ public class Interpreter
 
             var prev = env;
             env = local;
-            ExecResult execRes = ExecResult.Normal(Value.Nil());
+            RuntimeResult execRes = RuntimeResult.Normal(Value.Nil());
             foreach (var s in fd.Body)
             {
                 execRes = ExecStmt(s);
@@ -250,10 +266,10 @@ public class Interpreter
         TableLiteral tl  => EvalTable(tl),
         TableAccess ta   => EvalTableAccess(ta),
         CallExpr ce      => EvalCall(ce),
-        _ => Value.Error(
-                $"Cannot evaluate expression type {expr.GetType().Name}",
-                [.. callStack]
-                )
+        _ => Value.FromError(new Error(
+                ErrorCode.InternalUnsupportedExpressionType, errorStack: [.. callStack],
+                args: [$"{expr.GetType().Name}"]
+            ))
     };
 
     private Value EvalTable(TableLiteral tl)
@@ -277,10 +293,10 @@ public class Interpreter
         if (tbl != null && tbl.TryGetValue(ta.Key, out var v))
             return v;
 
-        return Value.Error(
-            $"Key '{ta.Key}' not found in table '{ta.Table}'",
-            [.. callStack]
-        );
+        return Value.FromError(new Error(
+            ErrorCode.RuntimeKeyNotFound, errorStack: [.. callStack],
+            args: [ta.Key, ta.Table]
+        ));
     }
 
     private Value EvalCall(CallExpr ce)
@@ -296,10 +312,10 @@ public class Interpreter
         if (fnVal.IsError) return fnVal;
         var fn = fnVal.Func;
         if (fn == null)
-            return Value.Error(
-                $"Attempt to call non-function '{name}'",
-                [.. callStack]
-            );
+            return Value.FromError(new Error(
+                ErrorCode.RuntimeInvalidFunctionCall, errorStack: [.. callStack],
+                args: [name]
+            ));
 
         var args = new List<Value>();
         foreach (var a in ce.Args)

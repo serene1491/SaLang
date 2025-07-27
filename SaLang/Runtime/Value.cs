@@ -1,4 +1,6 @@
 using System.Collections.Generic;
+using SaLang.Analyzers;
+using SaLang.Common;
 namespace SaLang.Runtime;
 
 public enum ValueKind { Number, String, Table, Function, Nil, Error }
@@ -10,24 +12,21 @@ public readonly struct Value
     public readonly string         String;
     public readonly Dictionary<string,Value> Table;
     public readonly FuncValue      Func;
-    public readonly string         ErrorMessage;
-    public readonly List<TraceFrame> ErrorStack;
+    public readonly Error? Error;
 
     private Value(ValueKind kind,
                   double? number = null,
                   string str = null,
                   Dictionary<string,Value> tbl = null,
                   FuncValue fn = null,
-                  string errMsg = null,
-                  List<TraceFrame> errStack = null)
+                  Error? error = null)
     {
         Kind          = kind;
         Number        = number;
         String        = str;
         Table         = tbl;
         Func          = fn;
-        ErrorMessage  = errMsg;
-        ErrorStack    = errStack;
+        Error         = error;
     }
 
     public static Value FromNumber(double n)        
@@ -40,8 +39,8 @@ public readonly struct Value
         => new Value(ValueKind.Function, fn:f);
     public static Value Nil()                      
         => new Value(ValueKind.Nil);
-    public static Value Error(string message, List<TraceFrame> stack = null) 
-        => new Value(ValueKind.Error, errMsg:message, errStack:stack);
+    public static Value FromError(Error error)
+        => new Value(ValueKind.Error, error: error);
     
     public bool IsError => Kind == ValueKind.Error;
 
@@ -54,7 +53,7 @@ public readonly struct Value
           ValueKind.Table    => "table",
           ValueKind.Function => "function",
           ValueKind.Nil      => "nil",
-          ValueKind.Error    => $"<error: {ErrorMessage}>",
+          ValueKind.Error    => Error.Value.Build() ?? "<null ValueKind.Error>", // unsafe
           _                  => "<?>"
         };
     }

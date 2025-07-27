@@ -33,11 +33,7 @@ public static class Engine
                 var interp = new Interpreter();
                 var result = interp.Interpret(ast);
                 if (result.IsError)
-                {
-                    Console.WriteLine($"{result.ErrorMessage}");
-                    foreach (var frame in result.ErrorStack)
-                        Console.WriteLine($"    at {frame.FunctionName} in {frame.File}:{frame.Line}");
-                }
+                    Console.WriteLine($"{result}");
             }
             catch (Exception ex)
             {

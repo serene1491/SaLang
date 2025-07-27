@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using SaLang.Syntax;
+using SaLang.Common;
 using SaLang.Syntax.Nodes;
 namespace SaLang.Parsing;
 
