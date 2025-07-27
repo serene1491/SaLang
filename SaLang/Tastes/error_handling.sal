@@ -1,0 +1,12 @@
+var table = {}
+unsafe function table.method()
+    return std.error('raising exception...')
+end
+
+table.method() as result
+
+result.ok then
+    std.print('no problems!..')
+not so
+    std.print(result.fail)
+end
