@@ -1,0 +1,14 @@
+require('std') as std
+var n1 = {}
+var n2 = {}
+
+function n1.method1()
+    std.print('nesting')
+
+    function n2.method2()
+        std.print('nested')
+    end
+end
+
+n1.method1()
+n2.method2()

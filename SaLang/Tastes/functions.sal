@@ -1,0 +1,12 @@
+require('std') as std
+
+var MyTable = {}
+
+function MyTable.MyMethod()
+    std.print('hello world')
+    std.print('hello world')
+    std.print('hello world')
+    std.print('hello world')
+end
+
+MyTable.MyMethod()
