@@ -11,9 +11,9 @@ namespace SaLang.Runtime;
 
 public class Interpreter
 {
-    private readonly Environment globals = new();
-    private Environment env;
-    private readonly Stack<TraceFrame> callStack = new();
+    private readonly Environment _globals = new();
+    private Environment _env;
+    private readonly Stack<TraceFrame> _callStack = new();
     private static bool IsTruthy(Value v)
         => !(v.IsError || v.Kind == ValueKind.Nil
                      || v.Kind == ValueKind.Bool && v.Bool == false
@@ -21,7 +21,7 @@ public class Interpreter
 
     public Interpreter()
     {
-        env = globals;
+        _env = _globals;
         RegisterDefaultBuiltins();
     }
 
@@ -38,12 +38,12 @@ public class Interpreter
     {
         Value wrapped(List<Value> args)
         {
-            callStack.Push(new TraceFrame(name, friendlySource, line, column));
+            _callStack.Push(new TraceFrame(name, friendlySource, line, column));
             try{ return implementation(args); }
-            finally{ callStack.Pop(); }
+            finally{ _callStack.Pop(); }
         }
 
-        globals.Define(name, Value.FromFunc(wrapped));
+        _globals.Define(name, Value.FromFunc(wrapped));
     }
 
     /// <summary>
@@ -61,13 +61,13 @@ public class Interpreter
         {
             Value wrapped(List<Value> args)
             {
-                callStack.Push(new TraceFrame($"{tableName}.{kv.Key}", friendlySource, line, column));
+                _callStack.Push(new TraceFrame($"{tableName}.{kv.Key}", friendlySource, line, column));
                 try { return kv.Value(args); }
-                finally { callStack.Pop(); }
+                finally { _callStack.Pop(); }
             }
             tbl[kv.Key] = Value.FromFunc(wrapped);
         }
-        globals.Define(tableName, Value.FromTable(tbl));
+        _globals.Define(tableName, Value.FromTable(tbl));
     }
 
     private void RegisterDefaultBuiltins()
@@ -98,7 +98,7 @@ public class Interpreter
             if (obj.Table != null) return Value.FromNumber(obj.Table.Count);
 
             return Value.FromError(new Error(
-                ErrorCode.SemanticInvalidArguments, errorStack: [.. callStack],
+                ErrorCode.SemanticInvalidArguments, errorStack: [.. _callStack],
                 args: ["len()", "string | table", args[0]]
             ));
         });
@@ -107,13 +107,13 @@ public class Interpreter
         {
             if (args.Count == 0 || args[0].String == null)
                 return Value.FromError(new Error(
-                    ErrorCode.SemanticInvalidArguments, errorStack: [.. callStack],
+                    ErrorCode.SemanticInvalidArguments, errorStack: [.. _callStack],
                     args: ["require()", "string", args[0]]
                 ));
             string moduleName = args[0].String!;
             
             try{
-                var already = globals.Get(moduleName);
+                var already = _globals.Get(moduleName);
                 return already;
             } catch{}
 
@@ -122,7 +122,7 @@ public class Interpreter
 
             if (!File.Exists(fullPath))
                 return Value.FromError(new Error(
-                    ErrorCode.IOFileNotFound, errorStack: [.. callStack],
+                    ErrorCode.IOFileNotFound, errorStack: [.. _callStack],
                     args: [fullPath]
                 ));
             string source = File.ReadAllText(filename);
@@ -136,7 +136,7 @@ public class Interpreter
                 return result;
             if (result.Kind != ValueKind.Table)
                 return Value.FromError(new Error(
-                    ErrorCode.IOReadError, errorStack: [.. callStack],
+                    ErrorCode.IOReadError, errorStack: [.. _callStack],
                     args: [result.Kind == ValueKind.Error? result : $"Expected an table return, got {result.Kind}"]
                 ));
 
@@ -195,7 +195,7 @@ public class Interpreter
                 return RuntimeResult.Return(rv.Value);;
             default:
                 return RuntimeResult.Error(Value.FromError(new Error(
-                    ErrorCode.InternalUnsupportedExpressionType, errorStack: [.. callStack],
+                    ErrorCode.InternalUnsupportedExpressionType, errorStack: [.. _callStack],
                     args: [$"statement {node.GetType().Name}"]
                 )));
         }
@@ -210,7 +210,7 @@ public class Interpreter
     {
         var res = EvalExpr(vd.Expr);
         if (res.IsError) return res;
-        env.Define(vd.Name, res.Value);
+        _env.Define(vd.Name, res.Value);
         return RuntimeResult.Nothing();
     }
 
@@ -218,7 +218,7 @@ public class Interpreter
     {
         var res = EvalExpr(aa.Expr);
         if (res.IsError) return RuntimeResult.Error(res.Value);
-        env.Define(aa.Name, res.Value);
+        _env.Define(aa.Name, res.Value);
         return RuntimeResult.Nothing();
     }
 
@@ -276,15 +276,15 @@ public class Interpreter
         var iterable = iterRes.Value;
         if (iterable.Table == null)
             return RuntimeResult.Error(Value.FromError(new Error(
-                ErrorCode.SemanticInvalidArguments, errorStack: [.. callStack],
+                ErrorCode.SemanticInvalidArguments, errorStack: [.. _callStack],
                 args: ["for-statement", "table", iterable.Kind]
             )));
 
         foreach (var kv in iterable.Table)
         {
             // Each entry: kv.Key (string), kv.Value
-            var local = new Environment(env);
-            env = local;
+            var local = new Environment(_env);
+            _env = local;
             // Assign loop variable
             local.Define(stmt.VarName, Value.FromString(kv.Key));
             local.Define("value", kv.Value);
@@ -295,13 +295,13 @@ public class Interpreter
                 if (res.IsError) return RuntimeResult.Error(res.Value);
                 if (res.IsReturn)
                 {
-                    env = env.Parent!;
+                    _env = _env.Parent!;
                     return RuntimeResult.Return(res.Value);
                 }
             }
 
             // Restore
-            env = env.Parent!;
+            _env = _env.Parent!;
         }
         return RuntimeResult.Nothing();
     }
@@ -311,22 +311,22 @@ public class Interpreter
         var func = new FuncValue(args =>
         {
             // Push frame
-            callStack.Push(new TraceFrame(
+            _callStack.Push(new TraceFrame(
                 fd.Name,
                 fd.Span.File,
                 fd.Span.Line,
                 fd.Span.Column
             ));
 
-            var local = new Environment(env);
-            var thisTbl = env.Get(fd.Table).Table;
+            var local = new Environment(_env);
+            var thisTbl = _env.Get(fd.Table).Table;
             if (thisTbl != null)
                 local.Define("this", Value.FromTable(thisTbl));
             for (int i = 0; i < fd.Params.Count; i++)
                 local.Define(fd.Params[i], i < args.Count ? args[i] : Value.Nil());
 
-            var prev = env;
-            env = local;
+            var prev = _env;
+            _env = local;
             RuntimeResult execRes = RuntimeResult.Nothing();
             foreach (var s in fd.Body)
             {
@@ -334,10 +334,10 @@ public class Interpreter
                 if (execRes.IsError || execRes.IsReturn)
                     break;
             }
-            env = prev;
+            _env = prev;
 
             // Pop frame
-            callStack.Pop();
+            _callStack.Pop();
 
             // Return type
             if (execRes.IsError)
@@ -347,9 +347,9 @@ public class Interpreter
             return Value.Nil();
         });
 
-        var tblVal = env.Get(fd.Table);
+        var tblVal = _env.Get(fd.Table);
         var tbl = tblVal.Table ?? new Dictionary<string, Value>();
-        env.Define(fd.Table, Value.FromTable(tbl));
+        _env.Define(fd.Table, Value.FromTable(tbl));
         tbl[fd.Name] = Value.FromFunc(func);
 
         return RuntimeResult.Nothing();
@@ -359,12 +359,12 @@ public class Interpreter
     {
         LiteralNumber ln => RuntimeResult.Normal(Value.FromNumber(ln.Value)),
         LiteralString ls => RuntimeResult.Normal(Value.FromString(ls.Value)),
-        Ident id         => RuntimeResult.Normal(env.Get(id.Name)),
+        Ident id         => RuntimeResult.Normal(_env.Get(id.Name)),
         TableLiteral tl  => EvalTable(tl),
         TableAccess ta   => EvalTableAccess(ta),
         CallExpr ce      => EvalCall(ce),
         _ => RuntimeResult.Error(Value.FromError(new Error(
-                ErrorCode.InternalUnsupportedExpressionType, errorStack: [.. callStack],
+                ErrorCode.InternalUnsupportedExpressionType, errorStack: [.. _callStack],
                 args: [$"{expr.GetType().Name}"]
             )))
     };
@@ -383,7 +383,7 @@ public class Interpreter
 
     private RuntimeResult EvalTableAccess(TableAccess ta)
     {
-        var tblVal = env.Get(ta.Table);
+        var tblVal = _env.Get(ta.Table);
         if (tblVal.IsError) return RuntimeResult.Error(tblVal);
 
         var tbl = tblVal.Table;
@@ -391,7 +391,7 @@ public class Interpreter
             return RuntimeResult.Normal(v);
 
         return RuntimeResult.Error(Value.FromError(new Error(
-            ErrorCode.RuntimeKeyNotFound, errorStack: [.. callStack],
+            ErrorCode.RuntimeKeyNotFound, errorStack: [.. _callStack],
             args: [ta.Key, ta.Table]
         )));
     }
@@ -410,7 +410,7 @@ public class Interpreter
         var fn = fnVal.Value.Func;
         if (fn == null)
             return RuntimeResult.Error(Value.FromError(new Error(
-                ErrorCode.RuntimeInvalidFunctionCall, errorStack: [.. callStack],
+                ErrorCode.RuntimeInvalidFunctionCall, errorStack: [.. _callStack],
                 args: [name]
             )));
 
