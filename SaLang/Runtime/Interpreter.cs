@@ -175,7 +175,13 @@ public class Interpreter
                 break;
             case IfStmt iff:
                 val = ExecIf(iff);
-                break; //etc
+                break;
+            case ForInStmt iff:
+                val = ExecForIn(iff);
+                break;
+            case WhileStmt iff:
+                val = ExecWhile(iff);
+                break;
             case FuncDecl fd:
                 val = ExecFunc(fd);
                 break;
@@ -239,7 +245,65 @@ public class Interpreter
                     return RuntimeResult.Return(Value.Nil());
             }
         }
-        return RuntimeResult.Normal(Value.Nil());
+        return RuntimeResult.Nothing();
+    }
+
+    private RuntimeResult ExecWhile(WhileStmt stmt)
+    {
+        // While cond do body end
+        while (true)
+        {
+            var condRes = EvalExpr(stmt.Condition);
+            if (condRes.IsError) return RuntimeResult.Error(condRes.Value);
+            var condVal = condRes.Value;
+            if (!IsTruthy(condVal)) break;
+
+            foreach (var s in stmt.Body)
+            {
+                var res = ExecStmt(s);
+                if (res.IsError) return RuntimeResult.Error(res.Value);
+                if (res.IsReturn) return RuntimeResult.Return(res.Value);
+            }
+        }
+        return RuntimeResult.Nothing();
+    }
+
+    private RuntimeResult ExecForIn(ForInStmt stmt)
+    {
+        // For varName in iterable do body end
+        var iterRes = EvalExpr(stmt.Iterable);
+        if (iterRes.IsError) return RuntimeResult.Error(iterRes.Value);
+        var iterable = iterRes.Value;
+        if (iterable.Table == null)
+            return RuntimeResult.Error(Value.FromError(new Error(
+                ErrorCode.SemanticInvalidArguments, errorStack: [.. callStack],
+                args: ["for-statement", "table", iterable.Kind]
+            )));
+
+        foreach (var kv in iterable.Table)
+        {
+            // Each entry: kv.Key (string), kv.Value
+            var local = new Environment(env);
+            env = local;
+            // Assign loop variable
+            local.Define(stmt.VarName, Value.FromString(kv.Key));
+            local.Define("value", kv.Value);
+
+            foreach (var s in stmt.Body)
+            {
+                var res = ExecStmt(s);
+                if (res.IsError) return RuntimeResult.Error(res.Value);
+                if (res.IsReturn)
+                {
+                    env = env.Parent!;
+                    return RuntimeResult.Return(res.Value);
+                }
+            }
+
+            // Restore
+            env = env.Parent!;
+        }
+        return RuntimeResult.Nothing();
     }
 
     private RuntimeResult ExecFunc(FuncDecl fd)

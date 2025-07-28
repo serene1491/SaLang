@@ -43,6 +43,8 @@ public class Parser
         if (Match(TokenType.Keyword, "function")) return ParseFunc();
         if (Match(TokenType.Keyword, "return")) return ParseReturn();
         if (Match(TokenType.Keyword, "if")) return ParseIf();
+        if (Match(TokenType.Keyword, "for")) return ParseForIn();
+        if (Match(TokenType.Keyword, "while")) return ParseWhile();
 
         var expr = ParseExpr();
         if (Match(TokenType.Keyword, "as"))
@@ -125,6 +127,36 @@ public class Parser
 
         Match(TokenType.Keyword, "end");
         return iff;
+    }
+
+    private ForInStmt ParseForIn()
+    {
+        var varName = Curr.Lexeme;
+        Match(TokenType.Identifier);
+        Match(TokenType.Keyword, "in");
+        var iterable = ParseExpr();
+        Match(TokenType.Keyword, "do");
+        var body = ParseBlockBody();
+        Match(TokenType.Keyword, "end");
+        return new ForInStmt
+        {
+            VarName = varName,
+            Iterable = iterable,
+            Body = body
+        };
+    }
+
+    private WhileStmt ParseWhile()
+    {
+        var condition = ParseExpr();
+        Match(TokenType.Keyword, "do");
+        var body = ParseBlockBody();
+        Match(TokenType.Keyword, "end");
+        return new WhileStmt
+        {
+            Condition = condition,
+            Body = body
+        };
     }
 
     private ReturnStmt ParseReturn()
