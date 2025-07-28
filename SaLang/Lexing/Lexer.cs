@@ -38,7 +38,8 @@ public class Lexer
         var type = (
             lex == "var" || lex == "function" || lex == "as"     ||
             lex == "do"  || lex == "end"      || lex == "return" ||
-            lex == "so"  || lex == "not"
+            lex == "if"  || lex == "not"      || lex == "else"   ||
+            lex == "so"  || lex == "elseif"   || lex == "then"
         ) ? TokenType.Keyword : TokenType.Identifier;
         tokens.Add(new Token(type, lex, line, c0));
     }

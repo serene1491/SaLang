@@ -16,8 +16,8 @@ public class Interpreter
     private readonly Stack<TraceFrame> callStack = new();
     private static bool IsTruthy(Value v)
         => !(v.IsError || v.Kind == ValueKind.Nil
-                || v.Kind == ValueKind.Bool && v.Bool == true)
-            || v.Number > 0; 
+                     || v.Kind == ValueKind.Bool && v.Bool == false
+                     || (v.Number <= 0 && v.Kind == ValueKind.Number)); 
 
     public Interpreter()
     {
@@ -137,7 +137,7 @@ public class Interpreter
             if (result.Kind != ValueKind.Table)
                 return Value.FromError(new Error(
                     ErrorCode.IOReadError, errorStack: [.. callStack],
-                    args: [result.Kind == ValueKind.Error? result : "Expected an table return."]
+                    args: [result.Kind == ValueKind.Error? result : $"Expected an table return, got {result.Kind}"]
                 ));
 
             return Value.FromTable(result.Table);
@@ -164,7 +164,7 @@ public class Interpreter
 
     private RuntimeResult ExecStmt(Ast node)
     {
-        Value val;
+        RuntimeResult val;
         switch (node)
         {
             case VarDeclaration vd:
@@ -173,6 +173,9 @@ public class Interpreter
             case AssignAs aa:
                 val = ExecAs(aa);
                 break;
+            case IfStmt iff:
+                val = ExecIf(iff);
+                break; //etc
             case FuncDecl fd:
                 val = ExecFunc(fd);
                 break;
@@ -182,8 +185,8 @@ public class Interpreter
             case ReturnStmt rs:
                 var rv    = EvalExpr(rs.Expr);
                 if (rv.IsError)
-                    return RuntimeResult.Error(rv);
-                return RuntimeResult.Return(rv);
+                    return RuntimeResult.Error(rv.Value);
+                return RuntimeResult.Return(rv.Value);;
             default:
                 return RuntimeResult.Error(Value.FromError(new Error(
                     ErrorCode.InternalUnsupportedExpressionType, errorStack: [.. callStack],
@@ -192,28 +195,54 @@ public class Interpreter
         }
 
         if (val.IsError)
-            return RuntimeResult.Error(val);
+            return val;
 
-        return RuntimeResult.Normal(val);
+        return val;
     }
 
-    private Value ExecVar(VarDeclaration vd)
+    private RuntimeResult ExecVar(VarDeclaration vd)
     {
-        var val = EvalExpr(vd.Expr);
-        if (val.IsError) return val;
-        env.Define(vd.Name, val);
-        return Value.Nil();
+        var res = EvalExpr(vd.Expr);
+        if (res.IsError) return res;
+        env.Define(vd.Name, res.Value);
+        return RuntimeResult.Nothing();
     }
 
-    private Value ExecAs(AssignAs aa)
+    private RuntimeResult ExecAs(AssignAs aa)
     {
-        var val = EvalExpr(aa.Expr);
-        if (val.IsError) return val;
-        env.Define(aa.Name, val);
-        return Value.Nil();
+        var res = EvalExpr(aa.Expr);
+        if (res.IsError) return RuntimeResult.Error(res.Value);
+        env.Define(aa.Name, res.Value);
+        return RuntimeResult.Nothing();
     }
 
-    private Value ExecFunc(FuncDecl fd)
+    private RuntimeResult ExecIf(IfStmt iff)
+    {
+        foreach (var clause in iff.Clauses)
+        {
+            if (clause.Condition != null)
+            {
+                var condResult = EvalExpr(clause.Condition).Value;
+                if (condResult.Kind == ValueKind.Error)
+                    return RuntimeResult.Normal(condResult);
+                if (!IsTruthy(condResult))
+                    continue;
+            }
+
+            // Can execute the body (as else or as truthy result)
+            foreach (var stmt in clause.Body)
+            {
+                var result = ExecStmt(stmt);
+                if (result.IsError)
+                    return RuntimeResult.Error(result.Value);
+                if (result.IsReturn)
+                    return RuntimeResult.Return(Value.Nil());
+            }
+        }
+        return RuntimeResult.Normal(Value.Nil());
+    }
+
+    private RuntimeResult ExecFunc(FuncDecl fd)
     {
         var func = new FuncValue(args =>
         {
@@ -234,7 +263,7 @@ public class Interpreter
 
             var prev = env;
             env = local;
-            RuntimeResult execRes = RuntimeResult.Normal(Value.Nil());
+            RuntimeResult execRes = RuntimeResult.Nothing();
             foreach (var s in fd.Body)
             {
                 execRes = ExecStmt(s);
@@ -255,86 +284,85 @@ public class Interpreter
         });
 
         var tblVal = env.Get(fd.Table);
-        var tbl    = tblVal.Table ?? new Dictionary<string, Value>();
+        var tbl = tblVal.Table ?? new Dictionary<string, Value>();
         env.Define(fd.Table, Value.FromTable(tbl));
         tbl[fd.Name] = Value.FromFunc(func);
 
-        return Value.Nil();
+        return RuntimeResult.Nothing();
     }
 
-    private Value EvalExpr(Ast expr) => expr switch
+    private RuntimeResult EvalExpr(Ast expr) => expr switch
     {
-        LiteralNumber ln => Value.FromNumber(ln.Value),
-        LiteralString ls => Value.FromString(ls.Value),
-        Ident id         => env.Get(id.Name),
+        LiteralNumber ln => RuntimeResult.Normal(Value.FromNumber(ln.Value)),
+        LiteralString ls => RuntimeResult.Normal(Value.FromString(ls.Value)),
+        Ident id         => RuntimeResult.Normal(env.Get(id.Name)),
         TableLiteral tl  => EvalTable(tl),
         TableAccess ta   => EvalTableAccess(ta),
         CallExpr ce      => EvalCall(ce),
-        _ => Value.FromError(new Error(
+        _ => RuntimeResult.Error(Value.FromError(new Error(
                 ErrorCode.InternalUnsupportedExpressionType, errorStack: [.. callStack],
                 args: [$"{expr.GetType().Name}"]
-            ))
+            )))
     };
 
-    private Value EvalTable(TableLiteral tl)
+    private RuntimeResult EvalTable(TableLiteral tl)
     {
         var d = new Dictionary<string, Value>();
         foreach (var kv in tl.Pairs)
         {
             var v = EvalExpr(kv.Value);
             if (v.IsError) return v;
-            d[kv.Key] = v;
+            d[kv.Key] = v.Value;
         }
-        return Value.FromTable(d);
+        return RuntimeResult.Normal(Value.FromTable(d));
     }
 
-    private Value EvalTableAccess(TableAccess ta)
+    private RuntimeResult EvalTableAccess(TableAccess ta)
     {
         var tblVal = env.Get(ta.Table);
-        if (tblVal.IsError) return tblVal;
+        if (tblVal.IsError) return RuntimeResult.Error(tblVal);
 
         var tbl = tblVal.Table;
         if (tbl != null && tbl.TryGetValue(ta.Key, out var v))
-            return v;
+            return RuntimeResult.Normal(v);
 
-        return Value.FromError(new Error(
+        return RuntimeResult.Error(Value.FromError(new Error(
             ErrorCode.RuntimeKeyNotFound, errorStack: [.. callStack],
             args: [ta.Key, ta.Table]
-        ));
+        )));
     }
 
-    private Value EvalCall(CallExpr ce)
+    private RuntimeResult EvalCall(CallExpr ce)
     {
         string name = ce.Callee switch
         {
             TableAccess t => t.Table + "." + t.Key,
             Ident i       => i.Name,
-            _             => "<anon>"
+            _             => "<anonymous>"
         };
 
         var fnVal = EvalExpr(ce.Callee);
         if (fnVal.IsError) return fnVal;
-        var fn = fnVal.Func;
+        var fn = fnVal.Value.Func;
         if (fn == null)
-            return Value.FromError(new Error(
+            return RuntimeResult.Error(Value.FromError(new Error(
                 ErrorCode.RuntimeInvalidFunctionCall, errorStack: [.. callStack],
                 args: [name]
-            ));
+            )));
 
         var args = new List<Value>();
         foreach (var a in ce.Args)
         {
             var av = EvalExpr(a);
             if (av.IsError) return av;
-            args.Add(av);
+            args.Add(av.Value);
         }
 
         // Invoke
         var result = fn(args);
         if (result.IsError)
-            // If native or user fn returned an error already, bubble it
-            return result;
+            return RuntimeResult.Error(result); //TODO: Allow handling functions with errors
 
-        return result;
+        return RuntimeResult.Normal(result);
     }
 }

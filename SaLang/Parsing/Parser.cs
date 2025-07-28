@@ -39,9 +39,10 @@ public class Parser
 
     private Ast ParseStmt()
     {
-        if (Match(TokenType.Keyword, "var"))      return ParseVar();
+        if (Match(TokenType.Keyword, "var")) return ParseVar();
         if (Match(TokenType.Keyword, "function")) return ParseFunc();
-        if (Match(TokenType.Keyword, "return"))   return ParseReturn();
+        if (Match(TokenType.Keyword, "return")) return ParseReturn();
+        if (Match(TokenType.Keyword, "if")) return ParseIf();
 
         var expr = ParseExpr();
         if (Match(TokenType.Keyword, "as"))
@@ -96,6 +97,34 @@ public class Parser
             Params = ps,
             Body = body
         };
+    }
+
+    private IfStmt ParseIf()
+    {
+        var iff = new IfStmt();
+
+        var cond = ParseExpr();
+        Match(TokenType.Keyword, "then");
+        var thenStmts = ParseBlockBody("elseif", "else", "not", "end");
+        iff.Clauses.Add(new IfClause { Condition = cond, Body = thenStmts });
+
+        while (Match(TokenType.Keyword, "elseif"))
+        {
+            var elifCond = ParseExpr();
+            Match(TokenType.Keyword, "then");
+            var elifStmts = ParseBlockBody("elseif", "else", "not", "end");
+            iff.Clauses.Add(new IfClause { Condition = elifCond, Body = elifStmts });
+        }
+
+        if (Match(TokenType.Keyword, "else") || Match(TokenType.Keyword, "not"))
+        {
+            Match(TokenType.Keyword, "so");
+            var elseStmts = ParseBlockBody("end");
+            iff.Clauses.Add(new IfClause { Body = elseStmts });
+        }
+
+        Match(TokenType.Keyword, "end");
+        return iff;
     }
 
     private ReturnStmt ParseReturn()
@@ -229,6 +258,49 @@ public class Parser
             }
             else
                 body.Add(ParseStmt());
+        }
+
+        return body;
+    }
+
+    /// <summary>
+    /// Reads from the current token until one of the specified terminators, respecting nested blocks
+    /// </summary>
+    private List<Ast> ParseBlockBody(params string[] terminators)
+    {
+        var body = new List<Ast>();
+        int depth = 0;
+        var terms = new HashSet<string>(terminators) { "end" };
+
+        while (cur < _tokens.Count)
+        {
+            if (Curr.Type == TokenType.EOF)
+                break;
+
+            if (Curr.Type == TokenType.Keyword &&
+                (Curr.Lexeme == "function" || Curr.Lexeme == "do" || Curr.Lexeme == "if"))
+            {
+                depth++;
+                body.Add(ParseStmt());
+                continue;
+            }
+
+            if (depth == 0 && Curr.Type == TokenType.Keyword && terms.Contains(Curr.Lexeme))
+                break;
+
+            if (Curr.Type == TokenType.Keyword && Curr.Lexeme == "end")
+            {
+                if (depth > 0)
+                {
+                    depth--;
+                    cur++;
+                    continue;
+                }
+                else
+                    break;
+            }
+
+            body.Add(ParseStmt());
         }
 
         return body;

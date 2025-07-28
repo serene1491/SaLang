@@ -1,0 +1,35 @@
+if 0 then
+    std.print('dont show this')
+end
+
+if 0.1 then
+    std.print('show this')
+end
+
+if 0.1 then
+    if 0.1 then
+        std.print('nested if ok')
+    end
+end
+
+if 0 then
+    std.print('not show this')
+not so
+    std.print('else ok')
+end
+
+if 0 then
+    std.print('not show this')
+else if 0 then
+    std.print('not show this')
+else if 0 then
+    std.print('not show this')
+not so
+    if 0 then
+        std.print('not show this')
+    else if 0 then
+        std.print('not show this')
+    else so
+        std.print('else nested ok')
+    end
+end

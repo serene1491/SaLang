@@ -15,6 +15,7 @@ public class RuntimeResult
     }
 
     public static RuntimeResult Normal(Value v) => new RuntimeResult(v, false, false);
-    public static RuntimeResult Return(Value v) => new RuntimeResult(v, true,  false);
+    public static RuntimeResult Nothing() => Normal(Value.Nil());
+    public static RuntimeResult Return(Value v) => new RuntimeResult(v, true, false);
     public static RuntimeResult Error(Value v)  => new RuntimeResult(v, false, true);
 }
