@@ -168,10 +168,10 @@ public class Interpreter
         switch (node)
         {
             case VarDeclaration vd:
-                val = ExecVar(vd);
+                val = ExecVarDeclaration(vd);
                 break;
-            case AssignAs aa:
-                val = ExecAs(aa);
+            case VarAssign va:
+                val = ExecVarAssign(va);
                 break;
             case IfStmt iff:
                 val = ExecIf(iff);
@@ -206,20 +206,55 @@ public class Interpreter
         return val;
     }
 
-    private RuntimeResult ExecVar(VarDeclaration vd)
+    private RuntimeResult ExecVarDeclaration(VarDeclaration vd)
     {
         var res = EvalExpr(vd.Expr);
         if (res.IsError) return res;
-        _env.Define(vd.Name, res.Value);
+        _env.Define(vd.Name, res.Value, vd.IsReadonly);
         return RuntimeResult.Nothing();
     }
 
-    private RuntimeResult ExecAs(AssignAs aa)
+    private RuntimeResult ExecVarAssign(VarAssign aa)
     {
         var res = EvalExpr(aa.Expr);
         if (res.IsError) return RuntimeResult.Error(res.Value);
-        _env.Define(aa.Name, res.Value);
-        return RuntimeResult.Nothing();
+
+        if (aa.Table != null)
+        {
+            var tableValRes = EvalTableAccess(new TableAccess { Table = aa.Table.Table, Key = aa.Table.Key });
+            if (tableValRes.IsError)
+            {
+                var baseTableRes = _env.Get(aa.Table.Table);
+                if (baseTableRes.IsError) 
+                    return RuntimeResult.Error(baseTableRes);
+
+                var baseTable = baseTableRes.Table;
+                if (baseTable == null)
+                    return RuntimeResult.Error(Value.FromError(new Error(
+                        ErrorCode.RuntimeInvalidFunctionCall, errorStack: [.. _callStack],
+                        args: [$"Variable '{aa.Table.Table}' is not a table"]
+                    )));
+
+                baseTable[aa.Table.Key] = res.Value;
+                return RuntimeResult.Nothing();
+            }
+            else
+            {
+                var tbl = _env.Get(aa.Table.Table).Table;
+                if (tbl == null)
+                    return RuntimeResult.Error(Value.FromError(new Error(
+                        ErrorCode.RuntimeInvalidFunctionCall, errorStack: [.. _callStack],
+                        args: [$"Variable '{aa.Table.Table}' is not a table"]
+                    )));
+
+                tbl[aa.Table.Key] = res.Value;
+                return RuntimeResult.Nothing();
+            }
+        }
+        else{
+            _env.Assign(aa.Name, res.Value);
+            return RuntimeResult.Nothing();
+        }
     }
 
     private RuntimeResult ExecIf(IfStmt iff)

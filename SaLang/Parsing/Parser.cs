@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using SaLang.Syntax;
 using SaLang.Common;
 using SaLang.Syntax.Nodes;
+using System.Security.Cryptography;
 namespace SaLang.Parsing;
 
 // Parser
@@ -17,6 +18,9 @@ public class Parser
         _sourceFile = sourceFile;
 
     private Token Curr => cur < _tokens.Count ? _tokens[cur] : _tokens[^1];
+
+    private bool Check(TokenType t, string lex = null)
+        => Curr.Type == t && (lex == null || Curr.Lexeme == lex);
 
     private bool Match(TokenType t, string lex = null)
     {
@@ -39,7 +43,7 @@ public class Parser
 
     private Ast ParseStmt()
     {
-        if (Match(TokenType.Keyword, "var")) return ParseVar();
+        if (Match(TokenType.Keyword, "var")) return ParseVarDeclaration();
         if (Match(TokenType.Keyword, "function")) return ParseFunc();
         if (Match(TokenType.Keyword, "return")) return ParseReturn();
         if (Match(TokenType.Keyword, "if")) return ParseIf();
@@ -47,23 +51,40 @@ public class Parser
         if (Match(TokenType.Keyword, "while")) return ParseWhile();
 
         var expr = ParseExpr();
-        if (Match(TokenType.Keyword, "as"))
+
+        if (Match(TokenType.Symbol, "=")) return ParseVarAssign(expr);
+        if (Match(TokenType.Keyword, "as")) // Read-only var declaration
         {
             var name = Curr.Lexeme;
             Match(TokenType.Identifier);
-            return new AssignAs { Expr = expr, Name = name };
+            return new VarDeclaration { Expr = expr, Name = name, IsReadonly = true };
         }
 
         return new ExpressionStmt { Expr = expr };
     }
 
-    private VarDeclaration ParseVar()
+    private VarDeclaration ParseVarDeclaration()
     {
         var name = Curr.Lexeme;
         Match(TokenType.Identifier);
         Match(TokenType.Symbol, "=");
         var e = ParseExpr();
-        return new VarDeclaration { Name = name, Expr = e };
+        return new VarDeclaration { Name = name, Expr = e, IsReadonly = false };
+    }
+
+    private VarAssign ParseVarAssign(Ast acess)
+    {
+        if (acess is Ident id)
+        {
+            var right = ParseExpr();
+            return new VarAssign { Name = id.Name, Expr = right };
+        }
+        else if (acess is TableAccess ta)
+        {
+            var right = ParseExpr();
+            return new VarAssign { Table = ta, Name = ta.Key, Expr = right };
+        }
+        else throw new Exception("Left side of assignment must be variable or table access");
     }
 
     private FuncDecl ParseFunc()

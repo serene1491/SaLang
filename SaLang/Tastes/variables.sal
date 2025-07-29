@@ -1,0 +1,6 @@
+var a = 1
+std.print(a)
+a = 2
+std.print(a)
+
+0 as zero
