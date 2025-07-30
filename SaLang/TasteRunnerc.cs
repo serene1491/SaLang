@@ -1,8 +1,10 @@
 using System;
 using System.IO;
+using SaLang.Analyzers;
 using SaLang.Lexing;
 using SaLang.Parsing;
 using SaLang.Runtime;
+using SaLang.Syntax.Nodes;
 namespace SaLang;
 
 public static class TestRunner
@@ -24,12 +26,20 @@ public static class TestRunner
 
                 var parser = new Parser(file);
                 var ast = parser.Parse(tokens);
+                if (ast.IsError)
+                {
+                    ast.TryGetError(out Error error);
+                    Console.WriteLine($"❌ Bitter {Path.GetFullPath(file)}: Syntax Exception");
+                    Console.WriteLine($"{error}");
+                    continue;
+                }
+                ast.TryGetValue(out ProgramNode programNode);
 
-                var interpreter = new Interpreter();
-                var result = interpreter.Interpret(ast);
+                var moduleInterp = new Interpreter();
+                var result = moduleInterp.Interpret(programNode);
                 if (result.IsError)
                 {
-                    Console.WriteLine($"❌ Bitter {Path.GetFullPath(file)}:");
+                    Console.WriteLine($"❌ Bitter {Path.GetFullPath(file)}: Runtime Exception");
                     Console.WriteLine($"{result}");
                     continue;
                 }

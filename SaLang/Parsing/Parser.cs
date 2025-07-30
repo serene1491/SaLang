@@ -3,12 +3,23 @@ using System.Collections.Generic;
 using SaLang.Syntax;
 using SaLang.Common;
 using SaLang.Syntax.Nodes;
-using System.Security.Cryptography;
+using SaLang.Analyzers.Syntax;
+using SaLang.Analyzers;
 namespace SaLang.Parsing;
 
 // Parser
 public class Parser
 {
+    #region Tracing
+    private List<TraceFrame> _trace = new();
+    private void TraceEnter(string prod, Token? at = null) => _trace.Add(Trace(prod, at));
+    private void TraceExit() => _trace.RemoveAt(_trace.Count - 1);
+    private TraceFrame Trace(string productionName, Token? at = null){
+        var t = at ?? Curr;
+        return new TraceFrame(productionName, _sourceFile, t.Line, t.Column);
+    }
+    #endregion
+
     private readonly string _sourceFile;
     private List<Token> _tokens = new();
     private int cur = 0;
@@ -24,71 +35,117 @@ public class Parser
 
     private bool Match(TokenType t, string lex = null)
     {
-        if (Curr.Type == t && (lex == null || Curr.Lexeme == lex))
-        {
+        if (Curr.Type == t && (lex == null || Curr.Lexeme == lex)){
             cur++;
             return true;
         }
         return false;
     }
 
-    public ProgramNode Parse(List<Token> tokens)
+    public SyntaxResult<ProgramNode> Parse(List<Token> tokens)
     {
         _tokens = tokens;
         cur = 0;
         var prog = new ProgramNode();
-        while (!Match(TokenType.EOF)) prog.Stmts.Add(ParseStmt());
-        return prog;
+
+        while (!Match(TokenType.EOF))
+        {
+            var stmtRes = ParseStmt();
+            if (stmtRes.TryGetError(out var err))
+                return SyntaxResult<ProgramNode>.Fail(err.Code, err.Args, err.ErrorStack);
+
+            stmtRes.TryGetValue(out var stmtNode);
+            prog.Stmts.Add(stmtNode);
+        }
+
+        return SyntaxResult<ProgramNode>.Ok(prog);
     }
 
-    private Ast ParseStmt()
+    private SyntaxResult<Ast> ParseStmt()
     {
-        if (Match(TokenType.Keyword, "var")) return ParseVarDeclaration();
-        if (Match(TokenType.Keyword, "function")) return ParseFunc();
-        if (Match(TokenType.Keyword, "return")) return ParseReturn();
-        if (Match(TokenType.Keyword, "if")) return ParseIf();
-        if (Match(TokenType.Keyword, "for")) return ParseForIn();
-        if (Match(TokenType.Keyword, "while")) return ParseWhile();
+        if (Match(TokenType.Keyword, "var"))
+            return ParseVarDeclaration().Upcast<VarDeclaration, Ast>();
+        if (Match(TokenType.Keyword, "function"))
+            return ParseFunc().Upcast<FuncDecl, Ast>();
+        if (Match(TokenType.Keyword, "return"))
+            return ParseReturn().Upcast<ReturnStmt, Ast>();
+        if (Match(TokenType.Keyword, "if"))
+            return ParseIf().Upcast<IfStmt, Ast>();
+        if (Match(TokenType.Keyword, "for"))
+            return ParseForIn().Upcast<ForInStmt, Ast>();
+        if (Match(TokenType.Keyword, "while"))
+            return ParseWhile().Upcast<WhileStmt, Ast>();
+        
+        TraceEnter("ParseExpr");
 
-        var expr = ParseExpr();
+        var rawExpr = ParseExpr();
+        if (rawExpr.TryGetError(out var err))
+        {
+            TraceExit();
+            return SyntaxResult<Ast>.Fail(err);
+        }
+        var expr = rawExpr.Expect();
 
-        if (Match(TokenType.Symbol, "=")) return ParseVarAssign(expr);
+        if (Match(TokenType.Symbol, "="))
+        {
+            TraceExit();
+            return ParseVarAssign(expr).Upcast<VarAssign, Ast>();
+        }
         if (Match(TokenType.Keyword, "as")) // Read-only var declaration
         {
             var name = Curr.Lexeme;
             Match(TokenType.Identifier);
-            return new VarDeclaration { Expr = expr, Name = name, IsReadonly = true };
+            var decl = new VarDeclaration { Expr = expr, Name = name, IsReadonly = true };
+            return SyntaxResult<Ast>.Ok(decl);
         }
-
-        return new ExpressionStmt { Expr = expr };
+        TraceExit();
+        return SyntaxResult<Ast>.Ok(new ExpressionStmt { Expr = expr });
     }
 
-    private VarDeclaration ParseVarDeclaration()
+    private SyntaxResult<VarDeclaration> ParseVarDeclaration()
     {
+        TraceEnter("ParseVarDeclaration");
         var name = Curr.Lexeme;
         Match(TokenType.Identifier);
         Match(TokenType.Symbol, "=");
-        var e = ParseExpr();
-        return new VarDeclaration { Name = name, Expr = e, IsReadonly = false };
+        var exprRes = ParseExpr();
+        if (exprRes.TryGetError(out var err))
+            return SyntaxResult<VarDeclaration>.Fail(err);
+
+        var decl = new VarDeclaration { Name = name, Expr = exprRes.Expect(), IsReadonly = false };
+        TraceExit();
+        return SyntaxResult<VarDeclaration>.Ok(decl);
     }
 
-    private VarAssign ParseVarAssign(Ast acess)
+    private SyntaxResult<VarAssign> ParseVarAssign(Ast acess)
     {
+        TraceEnter("ParseVarAssign");
         if (acess is Ident id)
         {
-            var right = ParseExpr();
-            return new VarAssign { Name = id.Name, Expr = right };
+            var rightRes = ParseExpr();
+            if (rightRes.TryGetError(out var err))
+                return SyntaxResult<VarAssign>.Fail(err);
+            return SyntaxResult<VarAssign>.Ok(new VarAssign { Name = id.Name, Expr = rightRes.Expect() });
         }
         else if (acess is TableAccess ta)
         {
-            var right = ParseExpr();
-            return new VarAssign { Table = ta, Name = ta.Key, Expr = right };
+            var rightRes = ParseExpr();
+            if (rightRes.TryGetError(out var err))
+                return SyntaxResult<VarAssign>.Fail(err);
+            return SyntaxResult<VarAssign>.Ok(
+                new VarAssign { Table = ta, Name = ta.Key, Expr = rightRes.Expect() });
         }
-        else throw new Exception("Left side of assignment must be variable or table access");
+        TraceExit();
+        return SyntaxResult<VarAssign>.Fail(
+            ErrorCode.SyntaxUnexpectedToken,
+            new[] { Curr.Lexeme },
+            _trace
+        );
     }
 
-    private FuncDecl ParseFunc()
+    private SyntaxResult<FuncDecl> ParseFunc()
     {
+        TraceEnter("ParseFunc");
         // Capture span of 'function' keyword
         var funcToken = _tokens[cur - 1];
         var span = new Span(_sourceFile, funcToken.Line + 1, funcToken.Column); // Count from 1 instead of 0 in funcToken.Line
@@ -110,83 +167,134 @@ public class Parser
             Match(TokenType.Symbol, ",");
         }
 
-        var body = ParseBlockBody();
+        var rawBody = ParseBlockBody();
+        var bodyRes = rawBody.Sequence();
+        if (bodyRes.TryGetError(out var err))
+            return SyntaxResult<FuncDecl>.Fail(err);
 
-        return new FuncDecl
+        TraceExit();
+        return SyntaxResult<FuncDecl>.Ok(new FuncDecl
         {
             Span = span,
             Table = table,
             Name = fname,
             Params = ps,
-            Body = body
-        };
+            Body = bodyRes.Expect()
+        });
     }
 
-    private IfStmt ParseIf()
+    private SyntaxResult<IfStmt> ParseIf()
     {
+        TraceEnter("ParseIf");
         var iff = new IfStmt();
 
         var cond = ParseExpr();
+        if (cond.TryGetError(out var err))
+            return SyntaxResult<IfStmt>.Fail(err);
+        
         Match(TokenType.Keyword, "then");
-        var thenStmts = ParseBlockBody("elseif", "else", "not", "end");
-        iff.Clauses.Add(new IfClause { Condition = cond, Body = thenStmts });
+        var rawThenStmts = ParseBlockBody("elseif", "else", "not", "end");
+        var thenbodyRes = rawThenStmts.Sequence();
+        if (thenbodyRes.TryGetError(out var tErr))
+            return SyntaxResult<IfStmt>.Fail(tErr);
+        
+        iff.Clauses.Add(new IfClause { Condition = cond.Expect(), Body = thenbodyRes.Expect() });
 
         while (Match(TokenType.Keyword, "elseif"))
         {
             var elifCond = ParseExpr();
+            if (elifCond.TryGetError(out var effErr))
+                return SyntaxResult<IfStmt>.Fail(effErr);
+
             Match(TokenType.Keyword, "then");
-            var elifStmts = ParseBlockBody("elseif", "else", "not", "end");
-            iff.Clauses.Add(new IfClause { Condition = elifCond, Body = elifStmts });
+            var rawElifStmts = ParseBlockBody("elseif", "else", "not", "end");
+            var elifbodyRes = rawElifStmts.Sequence();
+            if (elifbodyRes.TryGetError(out var fErr))
+                return SyntaxResult<IfStmt>.Fail(fErr);
+            
+            iff.Clauses.Add(new IfClause { Condition = elifCond.Expect(), Body = elifbodyRes.Expect() });
         }
 
         if (Match(TokenType.Keyword, "else") || Match(TokenType.Keyword, "not"))
         {
             Match(TokenType.Keyword, "so");
-            var elseStmts = ParseBlockBody("end");
-            iff.Clauses.Add(new IfClause { Body = elseStmts });
+            var rawElseStmts = ParseBlockBody("end");
+            var elseBodyRes = rawElseStmts.Sequence();
+            if (elseBodyRes.TryGetError(out var eErr))
+                return SyntaxResult<IfStmt>.Fail(eErr);
+
+            iff.Clauses.Add(new IfClause { Body = elseBodyRes.Expect() });
         }
 
         Match(TokenType.Keyword, "end");
-        return iff;
+        TraceExit();
+        return SyntaxResult<IfStmt>.Ok(iff);
     }
 
-    private ForInStmt ParseForIn()
+    private SyntaxResult<ForInStmt> ParseForIn()
     {
+        TraceEnter("ParseForIn");
         var varName = Curr.Lexeme;
         Match(TokenType.Identifier);
         Match(TokenType.Keyword, "in");
         var iterable = ParseExpr();
+        if (iterable.TryGetError(out var iErr))
+            return SyntaxResult<ForInStmt>.Fail(iErr);
+
         Match(TokenType.Keyword, "do");
-        var body = ParseBlockBody();
+
+        var rawBody = ParseBlockBody();
+        var bodyRes = rawBody.Sequence();
+        if (bodyRes.TryGetError(out var err))
+            return SyntaxResult<ForInStmt>.Fail(err);
+        var body = bodyRes.Expect();
+
         Match(TokenType.Keyword, "end");
-        return new ForInStmt
+        TraceExit();
+        return SyntaxResult<ForInStmt>.Ok(new ForInStmt
         {
             VarName = varName,
-            Iterable = iterable,
+            Iterable = iterable.Expect(),
             Body = body
-        };
+        });
     }
 
-    private WhileStmt ParseWhile()
+    private SyntaxResult<WhileStmt> ParseWhile()
     {
-        var condition = ParseExpr();
+        TraceEnter("ParseWhile");
+        var conditionRes = ParseExpr();
+        if (conditionRes.TryGetError(out var eErr))
+            return SyntaxResult<WhileStmt>.Fail(eErr);
+        
         Match(TokenType.Keyword, "do");
-        var body = ParseBlockBody();
+
+        var rawBody = ParseBlockBody();
+        var bodyRes = rawBody.Sequence();
+        if (bodyRes.TryGetError(out var err))
+            return SyntaxResult<WhileStmt>.Fail(err);
+        var body = bodyRes.Expect();
+
         Match(TokenType.Keyword, "end");
-        return new WhileStmt
+        TraceExit();
+        return SyntaxResult<WhileStmt>.Ok(new WhileStmt
         {
-            Condition = condition,
+            Condition = conditionRes.Expect(),
             Body = body
-        };
+        });
     }
 
-    private ReturnStmt ParseReturn()
+    private SyntaxResult<ReturnStmt> ParseReturn()
     {
-        var expr = ParseExpr();
-        return new ReturnStmt { Expr = expr };
+        TraceEnter("ParseReturn");
+        var exprRes = ParseExpr();
+        if (exprRes.TryGetError(out var eErr))
+            return SyntaxResult<ReturnStmt>.Fail(eErr);
+        
+        TraceExit();
+        return SyntaxResult<ReturnStmt>.Ok(new ReturnStmt { Expr = exprRes.Expect() });
     }
 
-    private Ast ParseExpr() => ParseBinary(0);
+    private SyntaxResult<Ast> ParseExpr() => ParseBinary(0);
 
     private static readonly Dictionary<string, int> precedences = new()
     {
@@ -197,9 +305,11 @@ public class Parser
         ["#"] = 3 // Unary length operator (len)
     };
 
-    private Ast ParseBinary(int parentPrecedence)
+    private SyntaxResult<Ast> ParseBinary(int parentPrecedence)
     {
-        Ast left = ParseUnary();
+        SyntaxResult<Ast> rawLeft = ParseUnary();
+        if (rawLeft.TryGetError(out var e)) return SyntaxResult<Ast>.Fail(e);
+        var left = rawLeft.Expect();
 
         while (true)
         {
@@ -210,33 +320,44 @@ public class Parser
                 break;
 
             Match(TokenType.Symbol, op);
-            Ast right = ParseBinary(prec + 1);
+            var rightRes = ParseBinary(prec + 1);
+            if (rightRes.TryGetError(out var err))
+                return SyntaxResult<Ast>.Fail(err);
+            var right = rightRes.Expect();
             string funcName = op switch
             {
                 "+" => "sum",
                 "-" => "sub",
                 "*" => "mul",
                 "/" => "div",
-                _ => throw new Exception($"Operator not implemented {op}")
+                _ => null,
             };
+            if (funcName == null)
+                return SyntaxResult<Ast>.Fail(
+                           ErrorCode.InternalUnsupportedExpressionType,
+                           new object[] { op },
+                           _trace
+                       );
 
             left = new CallExpr { Callee = new Ident { Name = funcName }, Args = new List<Ast> { left, right } };
         }
 
-        return left;
+        return SyntaxResult<Ast>.Ok(left);
     }
 
-    private Ast ParseUnary()
+    private SyntaxResult<Ast> ParseUnary()
     {
         if (Match(TokenType.Symbol, "#"))
         {
-            var operand = ParseUnary();
-            return new CallExpr { Callee = new Ident { Name = "len" }, Args = new List<Ast> { operand } };
+            var operandRes = ParseUnary();
+            if (operandRes.TryGetError(out var e)) return SyntaxResult<Ast>.Fail(e);
+            return SyntaxResult<Ast>.Ok(
+                new CallExpr { Callee = new Ident { Name = "len" }, Args = new List<Ast> { operandRes.Expect() } });
         }
         return ParsePrimary();
     }
 
-    private Ast ParsePrimary()
+    private SyntaxResult<Ast> ParsePrimary()
     {
         Ast expr;
         if (Match(TokenType.Number))
@@ -262,39 +383,57 @@ public class Parser
                 string k = Curr.Lexeme;
                 Match(TokenType.Identifier);
                 Match(TokenType.Symbol, "=");
-                tbl.Pairs[k] = ParseExpr();
+                var p = ParseExpr();
+                if (p.TryGetError(out var err))
+                    return SyntaxResult<Ast>.Fail(err);
+
+                tbl.Pairs[k] = p.Expect();
                 Match(TokenType.Symbol, ",");
             }
             expr = tbl;
         }
         else if (Match(TokenType.Symbol, "("))
         {
-            expr = ParseExpr();
+            var rawExpr = ParseExpr();
+            if (rawExpr.TryGetError(out var err))
+                return SyntaxResult<Ast>.Fail(err);
+            expr = rawExpr.Expect();
+
             Match(TokenType.Symbol, ")");
         }
         else
-            throw new Exception($"Syntax error at {Curr.Lexeme}");
+            return SyntaxResult<Ast>.Fail(
+                ErrorCode.SyntaxUnexpectedToken,
+                new object[] { Curr.Lexeme },
+                _trace
+            );
 
         while (Match(TokenType.Symbol, "("))
         {
             var args = new List<Ast>();
             if (!Match(TokenType.Symbol, ")"))
             {
-                do { args.Add(ParseExpr()); } while (Match(TokenType.Symbol, ","));
+                do{
+                    var e = ParseExpr();
+                    if (e.TryGetError(out var err))
+                        return SyntaxResult<Ast>.Fail(err);
+
+                    args.Add(e.Expect());
+                } while (Match(TokenType.Symbol, ","));
                 Match(TokenType.Symbol, ")");
             }
             expr = new CallExpr { Callee = expr, Args = args };
         }
 
-        return expr;
+        return SyntaxResult<Ast>.Ok(expr);
     }
 
     /// <summary>
     /// Reads from the current token until the `end` that closes the initial block, respecting nesting
     /// </summary>
-    private List<Ast> ParseBlockBody()
+    private List<SyntaxResult<Ast>> ParseBlockBody()
     {
-        var body = new List<Ast>();
+        var body = new List<SyntaxResult<Ast>>();
         int depth = 1;
 
         while (depth > 0 && !Match(TokenType.EOF))
@@ -319,9 +458,9 @@ public class Parser
     /// <summary>
     /// Reads from the current token until one of the specified terminators, respecting nested blocks
     /// </summary>
-    private List<Ast> ParseBlockBody(params string[] terminators)
+    private List<SyntaxResult<Ast>> ParseBlockBody(params string[] terminators)
     {
-        var body = new List<Ast>();
+        var body = new List<SyntaxResult<Ast>>();
         int depth = 0;
         var terms = new HashSet<string>(terminators) { "end" };
 

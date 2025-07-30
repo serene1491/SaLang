@@ -137,9 +137,15 @@ public class Interpreter
 
             var tokens = new Lexer(source).Tokenize();
             var prog = new Parser(filename).Parse(tokens);
+            if (prog.IsError)
+            {
+                prog.TryGetError(out Error error);
+                return Value.FromError(error);
+            }
+            prog.TryGetValue(out ProgramNode programNode);
 
             var moduleInterp = new Interpreter();
-            var result = moduleInterp.Interpret(prog);
+            var result = moduleInterp.Interpret(programNode);
             if (result.IsError)
                 return result;
             if (result.Kind != ValueKind.Table)

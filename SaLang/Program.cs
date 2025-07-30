@@ -1,6 +1,8 @@
-﻿using SaLang.Lexing;
+﻿using SaLang.Analyzers;
+using SaLang.Lexing;
 using SaLang.Parsing;
 using SaLang.Runtime;
+using SaLang.Syntax.Nodes;
 using System;
 namespace SaLang;
 
@@ -30,8 +32,16 @@ public static class Engine
                 var toks = lex.Tokenize();
                 var parser = new Parser();
                 var ast = parser.Parse(toks);
-                var interp = new Interpreter();
-                var result = interp.Interpret(ast);
+                if (ast.IsError)
+                {
+                    ast.TryGetError(out Error error);
+                    Console.WriteLine($"{error}");
+                    continue;
+                }
+                ast.TryGetValue(out ProgramNode programNode);
+
+                var moduleInterp = new Interpreter();
+                var result = moduleInterp.Interpret(programNode);
                 if (result.IsError)
                     Console.WriteLine($"{result}");
             }

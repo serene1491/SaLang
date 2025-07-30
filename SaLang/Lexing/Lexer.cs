@@ -2,7 +2,6 @@ using System.Collections.Generic;
 using SaLang.Syntax;
 namespace SaLang.Lexing;
 
-// Lexer: transforma fonte em tokens
 public class Lexer
 {
     public Lexer(string code) { this.src = code; }
