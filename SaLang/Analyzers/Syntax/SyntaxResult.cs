@@ -68,6 +68,19 @@ public readonly struct SyntaxResult<T>
         return false;
     }
 
+    public bool TryUnwrap(out T value, out SyntaxResult<T> fail)
+    {
+        if (IsError)
+        {
+            fail = this;
+            value = default!;
+            return false;
+        }
+        value = _value;
+        fail = default!;
+        return true;
+    }
+
     public T Expect()
     {
         if (IsError)

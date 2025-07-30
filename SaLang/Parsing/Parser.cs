@@ -79,23 +79,23 @@ public class Parser
         TraceEnter("ParseExpr");
 
         var rawExpr = ParseExpr();
-        if (rawExpr.TryGetError(out var err))
+        if (!rawExpr.TryUnwrap(out var expr, out var fail))
         {
             TraceExit();
-            return SyntaxResult<Ast>.Fail(err);
+            return fail;
         }
-        var expr = rawExpr.Expect();
 
         if (Match(TokenType.Symbol, "="))
-        {
-            TraceExit();
-            return ParseVarAssign(expr).Upcast<VarAssign, Ast>();
-        }
+            {
+                TraceExit();
+                return ParseVarAssign(expr).Upcast<VarAssign, Ast>();
+            }
         if (Match(TokenType.Keyword, "as")) // Read-only var declaration
         {
             var name = Curr.Lexeme;
             Match(TokenType.Identifier);
             var decl = new VarDeclaration { Expr = expr, Name = name, IsReadonly = true };
+            TraceExit();
             return SyntaxResult<Ast>.Ok(decl);
         }
         TraceExit();
@@ -109,8 +109,7 @@ public class Parser
         Match(TokenType.Identifier);
         Match(TokenType.Symbol, "=");
         var exprRes = ParseExpr();
-        if (exprRes.TryGetError(out var err))
-            return SyntaxResult<VarDeclaration>.Fail(err);
+        if (exprRes.TryGetError(out var err)) return SyntaxResult<VarDeclaration>.Fail(err);
 
         var decl = new VarDeclaration { Name = name, Expr = exprRes.Expect(), IsReadonly = false };
         TraceExit();
@@ -123,15 +122,13 @@ public class Parser
         if (acess is Ident id)
         {
             var rightRes = ParseExpr();
-            if (rightRes.TryGetError(out var err))
-                return SyntaxResult<VarAssign>.Fail(err);
+            if (rightRes.TryGetError(out var err)) return SyntaxResult<VarAssign>.Fail(err);
             return SyntaxResult<VarAssign>.Ok(new VarAssign { Name = id.Name, Expr = rightRes.Expect() });
         }
         else if (acess is TableAccess ta)
         {
             var rightRes = ParseExpr();
-            if (rightRes.TryGetError(out var err))
-                return SyntaxResult<VarAssign>.Fail(err);
+            if (rightRes.TryGetError(out var err)) return SyntaxResult<VarAssign>.Fail(err);
             return SyntaxResult<VarAssign>.Ok(
                 new VarAssign { Table = ta, Name = ta.Key, Expr = rightRes.Expect() });
         }
@@ -169,8 +166,7 @@ public class Parser
 
         var rawBody = ParseBlockBody();
         var bodyRes = rawBody.Sequence();
-        if (bodyRes.TryGetError(out var err))
-            return SyntaxResult<FuncDecl>.Fail(err);
+        if (bodyRes.TryGetError(out var err)) return SyntaxResult<FuncDecl>.Fail(err);
 
         TraceExit();
         return SyntaxResult<FuncDecl>.Ok(new FuncDecl
@@ -189,28 +185,24 @@ public class Parser
         var iff = new IfStmt();
 
         var cond = ParseExpr();
-        if (cond.TryGetError(out var err))
-            return SyntaxResult<IfStmt>.Fail(err);
+        if (cond.TryGetError(out var err)) return SyntaxResult<IfStmt>.Fail(err);
         
         Match(TokenType.Keyword, "then");
         var rawThenStmts = ParseBlockBody("elseif", "else", "not", "end");
         var thenbodyRes = rawThenStmts.Sequence();
-        if (thenbodyRes.TryGetError(out var tErr))
-            return SyntaxResult<IfStmt>.Fail(tErr);
+        if (thenbodyRes.TryGetError(out var tErr)) return SyntaxResult<IfStmt>.Fail(tErr);
         
         iff.Clauses.Add(new IfClause { Condition = cond.Expect(), Body = thenbodyRes.Expect() });
 
         while (Match(TokenType.Keyword, "elseif"))
         {
             var elifCond = ParseExpr();
-            if (elifCond.TryGetError(out var effErr))
-                return SyntaxResult<IfStmt>.Fail(effErr);
+            if (elifCond.TryGetError(out var effErr)) return SyntaxResult<IfStmt>.Fail(effErr);
 
             Match(TokenType.Keyword, "then");
             var rawElifStmts = ParseBlockBody("elseif", "else", "not", "end");
             var elifbodyRes = rawElifStmts.Sequence();
-            if (elifbodyRes.TryGetError(out var fErr))
-                return SyntaxResult<IfStmt>.Fail(fErr);
+            if (elifbodyRes.TryGetError(out var fErr)) return SyntaxResult<IfStmt>.Fail(fErr);
             
             iff.Clauses.Add(new IfClause { Condition = elifCond.Expect(), Body = elifbodyRes.Expect() });
         }
@@ -220,8 +212,7 @@ public class Parser
             Match(TokenType.Keyword, "so");
             var rawElseStmts = ParseBlockBody("end");
             var elseBodyRes = rawElseStmts.Sequence();
-            if (elseBodyRes.TryGetError(out var eErr))
-                return SyntaxResult<IfStmt>.Fail(eErr);
+            if (elseBodyRes.TryGetError(out var eErr)) return SyntaxResult<IfStmt>.Fail(eErr);
 
             iff.Clauses.Add(new IfClause { Body = elseBodyRes.Expect() });
         }
@@ -238,15 +229,13 @@ public class Parser
         Match(TokenType.Identifier);
         Match(TokenType.Keyword, "in");
         var iterable = ParseExpr();
-        if (iterable.TryGetError(out var iErr))
-            return SyntaxResult<ForInStmt>.Fail(iErr);
+        if (iterable.TryGetError(out var iErr)) return SyntaxResult<ForInStmt>.Fail(iErr);
 
         Match(TokenType.Keyword, "do");
 
         var rawBody = ParseBlockBody();
         var bodyRes = rawBody.Sequence();
-        if (bodyRes.TryGetError(out var err))
-            return SyntaxResult<ForInStmt>.Fail(err);
+        if (bodyRes.TryGetError(out var err)) return SyntaxResult<ForInStmt>.Fail(err);
         var body = bodyRes.Expect();
 
         Match(TokenType.Keyword, "end");
@@ -263,15 +252,13 @@ public class Parser
     {
         TraceEnter("ParseWhile");
         var conditionRes = ParseExpr();
-        if (conditionRes.TryGetError(out var eErr))
-            return SyntaxResult<WhileStmt>.Fail(eErr);
+        if (conditionRes.TryGetError(out var err)) return SyntaxResult<WhileStmt>.Fail(err);
         
         Match(TokenType.Keyword, "do");
 
         var rawBody = ParseBlockBody();
         var bodyRes = rawBody.Sequence();
-        if (bodyRes.TryGetError(out var err))
-            return SyntaxResult<WhileStmt>.Fail(err);
+        if (bodyRes.TryGetError(out var bErr)) return SyntaxResult<WhileStmt>.Fail(bErr);
         var body = bodyRes.Expect();
 
         Match(TokenType.Keyword, "end");
@@ -287,8 +274,7 @@ public class Parser
     {
         TraceEnter("ParseReturn");
         var exprRes = ParseExpr();
-        if (exprRes.TryGetError(out var eErr))
-            return SyntaxResult<ReturnStmt>.Fail(eErr);
+        if (exprRes.TryGetError(out var err)) return SyntaxResult<ReturnStmt>.Fail(err);
         
         TraceExit();
         return SyntaxResult<ReturnStmt>.Ok(new ReturnStmt { Expr = exprRes.Expect() });
@@ -308,8 +294,7 @@ public class Parser
     private SyntaxResult<Ast> ParseBinary(int parentPrecedence)
     {
         SyntaxResult<Ast> rawLeft = ParseUnary();
-        if (rawLeft.TryGetError(out var e)) return SyntaxResult<Ast>.Fail(e);
-        var left = rawLeft.Expect();
+        if (!rawLeft.TryUnwrap(out var left, out var fail)) return fail;
 
         while (true)
         {
@@ -321,9 +306,7 @@ public class Parser
 
             Match(TokenType.Symbol, op);
             var rightRes = ParseBinary(prec + 1);
-            if (rightRes.TryGetError(out var err))
-                return SyntaxResult<Ast>.Fail(err);
-            var right = rightRes.Expect();
+            if (!rightRes.TryUnwrap(out var right, out var rfail)) return rfail;
             string funcName = op switch
             {
                 "+" => "sum",
@@ -350,9 +333,9 @@ public class Parser
         if (Match(TokenType.Symbol, "#"))
         {
             var operandRes = ParseUnary();
-            if (operandRes.TryGetError(out var e)) return SyntaxResult<Ast>.Fail(e);
+            if (!operandRes.TryUnwrap(out var operand, out var fail)) return fail;
             return SyntaxResult<Ast>.Ok(
-                new CallExpr { Callee = new Ident { Name = "len" }, Args = new List<Ast> { operandRes.Expect() } });
+                new CallExpr { Callee = new Ident { Name = "len" }, Args = new List<Ast> { operand } });
         }
         return ParsePrimary();
     }
@@ -384,10 +367,9 @@ public class Parser
                 Match(TokenType.Identifier);
                 Match(TokenType.Symbol, "=");
                 var p = ParseExpr();
-                if (p.TryGetError(out var err))
-                    return SyntaxResult<Ast>.Fail(err);
+                if (!p.TryUnwrap(out var value, out var fail)) return fail;
 
-                tbl.Pairs[k] = p.Expect();
+                tbl.Pairs[k] = value;
                 Match(TokenType.Symbol, ",");
             }
             expr = tbl;
@@ -395,9 +377,8 @@ public class Parser
         else if (Match(TokenType.Symbol, "("))
         {
             var rawExpr = ParseExpr();
-            if (rawExpr.TryGetError(out var err))
-                return SyntaxResult<Ast>.Fail(err);
-            expr = rawExpr.Expect();
+            if (!rawExpr.TryUnwrap(out var e, out var fail)) return fail;
+            expr = e;
 
             Match(TokenType.Symbol, ")");
         }
@@ -414,11 +395,10 @@ public class Parser
             if (!Match(TokenType.Symbol, ")"))
             {
                 do{
-                    var e = ParseExpr();
-                    if (e.TryGetError(out var err))
-                        return SyntaxResult<Ast>.Fail(err);
+                    var eRaw = ParseExpr();
+                    if (!eRaw.TryUnwrap(out var e, out var rfail)) return rfail;
 
-                    args.Add(e.Expect());
+                    args.Add(e);
                 } while (Match(TokenType.Symbol, ","));
                 Match(TokenType.Symbol, ")");
             }
@@ -438,15 +418,11 @@ public class Parser
 
         while (depth > 0 && !Match(TokenType.EOF))
         {
-            if (Curr.Type == TokenType.Keyword && Curr.Lexeme == "function" || Curr.Lexeme == "do")
-            {
-                depth++;
-                body.Add(ParseStmt());
+            if (Curr.Type == TokenType.Keyword && Curr.Lexeme == "function" || Curr.Lexeme == "do"){
+                depth++; body.Add(ParseStmt());
             }
-            else if (Curr.Type == TokenType.Keyword && Curr.Lexeme == "end")
-            {
-                cur++;
-                depth--;
+            else if (Curr.Type == TokenType.Keyword && Curr.Lexeme == "end"){
+                cur++; depth--;
             }
             else
                 body.Add(ParseStmt());
@@ -484,9 +460,7 @@ public class Parser
             {
                 if (depth > 0)
                 {
-                    depth--;
-                    cur++;
-                    continue;
+                    depth--; cur++; continue;
                 }
                 else
                     break;
