@@ -32,7 +32,7 @@ public readonly struct Error
         foreach (var frame in ErrorStack)
             errorFormated += $"    at {frame.FunctionName} in {frame.File}:{frame.Line};{frame.Column}\n";
 
-        return errorFormated;
+        return errorFormated + "End atack trace";
     }
 
     public override string ToString() => Build();

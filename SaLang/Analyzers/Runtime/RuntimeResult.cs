@@ -1,7 +1,7 @@
 using SaLang.Runtime;
 namespace SaLang.Analyzers.Runtime;
 
-public class RuntimeResult
+public readonly struct RuntimeResult
 {
     public bool IsReturn { get; }
     public bool IsError  { get; }

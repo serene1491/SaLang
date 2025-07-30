@@ -74,15 +74,23 @@ public class Interpreter
     {
         var stdImpls = new Dictionary<string, Func<List<Value>, Value>>
         {
-            ["print"] = args =>{
+            ["print"] = args =>
+            {
                 var v = args.Count > 0 ? args[0] : Value.Nil();
                 Console.WriteLine(v.ToString());
                 return Value.Nil();
             },
-            ["read"] = args =>{
+            ["read"] = args =>
+            {
                 var v = args.Count > 0 ? args[0] : Value.Nil();
                 Console.WriteLine(v);
-                return Value.FromString(Console.ReadLine() ?? "nil");
+                return Value.FromString(Console.ReadLine() ?? "");
+            },
+            ["error"] = args =>
+            {
+                var v = args.Count > 0 ? args[0] : Value.FromString("?");
+                return Value.FromError(new Error(ErrorCode.RuntimeThrownException, errorStack: [.. _callStack],
+                args: [v]));
             }
         };
         AddBuiltinLibrary("std", stdImpls);

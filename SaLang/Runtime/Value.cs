@@ -45,7 +45,7 @@ public readonly struct Value
         => new Value(ValueKind.Nil);
     public static Value FromError(Error error)
         => new Value(ValueKind.Error, error: error);
-    #endregion
+    #endregion Factory
 
     public bool IsError => Kind == ValueKind.Error;
 
@@ -55,11 +55,11 @@ public readonly struct Value
         {
           ValueKind.Number   => Number.Value.ToString(),
           ValueKind.String   => String,
-          ValueKind.Bool     => Bool?.ToString() ?? "nil bool",
+          ValueKind.Bool     => Bool?.ToString() ?? "nil<bool>",
           ValueKind.Table    => "table",
           ValueKind.Function => "function",
           ValueKind.Nil      => "nil",
-          ValueKind.Error    => Error?.Build() ?? "<null ValueKind.Error>",
+          ValueKind.Error    => Error?.Build() ?? "nil<error>",
           _                  => "<?>"
         };
     }
