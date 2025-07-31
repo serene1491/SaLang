@@ -4,9 +4,15 @@ var MyTable = {}
 
 function MyTable.MyMethod()
     std.print('hello world')
+    return nil
     std.print('hello world')
     std.print('hello world')
     std.print('hello world')
 end
 
+function MyTable.HelloWorld()
+    return 'greetings from hello world function!'
+end
+
 MyTable.MyMethod()
+std.print(MyTable.HelloWorld())

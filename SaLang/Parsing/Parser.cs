@@ -342,7 +342,12 @@ public class Parser
     private SyntaxResult<Ast> ParsePrimary()
     {
         Ast expr;
-        if (Match(TokenType.Number))
+        
+        if (Match(TokenType.Keyword, "nil")) expr = new LiteralNil();
+        else if (Match(TokenType.Keyword, "true")) expr = new LiteralBool { Value = true };
+        else if (Match(TokenType.Keyword, "false")) expr = new LiteralBool { Value = false };
+        
+        else if (Match(TokenType.Number))
             expr = new LiteralNumber { Value = double.Parse(_tokens[cur - 1].Lexeme) };
         else if (Match(TokenType.String))
             expr = new LiteralString { Value = _tokens[cur - 1].Lexeme };

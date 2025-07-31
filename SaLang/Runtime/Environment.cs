@@ -1,5 +1,6 @@
-using System;
 using System.Collections.Generic;
+using SaLang.Analyzers.Semantic;
+using SaLang.Analyzers;
 namespace SaLang.Runtime;
 
 public class Environment {
@@ -10,25 +11,35 @@ public class Environment {
         Parent = parent;
     }
 
-    public void Define(string n, Value v, bool isReadonly = false)
-        => _vals[n] = (v, isReadonly);
-    
-    public void Assign(string n, Value v)
+    public SemanticResult Define(string n, Value v, bool isReadonly = false)
+    {
+        if (_vals.TryGetValue(n, out var _)) return SemanticResult.Fail(ErrorCode.SemanticDuplicateSymbol);
+
+        _vals[n] = (v, isReadonly);
+        return SemanticResult.Nothing();
+    }
+
+    public SemanticResult Assign(string n, Value v)
     {
         if (_vals.TryGetValue(n, out var entry))
         {
-            if (entry.isReadonly) throw new Exception($"Cannot assign to readonly variable '{n}'");
+            if (entry.isReadonly) return SemanticResult.Fail(ErrorCode.SemanticReadonlyAssignment);
 
             _vals[n] = (v, entry.isReadonly);
+            return SemanticResult.Nothing();
         }
-        else if (Parent != null) Parent.Assign(n, v);
-        else throw new Exception($"Undefined var '{n}'");
+        else if (Parent != null)
+        {
+            Parent.Assign(n, v);
+            return SemanticResult.Nothing();
+        }
+        else return SemanticResult.Fail(ErrorCode.SemanticUndefinedVariable);
     }
-    
-    public Value Get(string n)
+
+    public Value? Get(string n)
     {
         if (_vals.TryGetValue(n, out var entry)) return entry.value;
         if (Parent != null) return Parent.Get(n);
-        throw new Exception($"Undefined var '{n}'");
+        else return null;
     }
 }

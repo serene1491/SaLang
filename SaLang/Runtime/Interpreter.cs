@@ -120,10 +120,9 @@ public class Interpreter
                 ));
             string moduleName = args[0].String!;
             
-            try{
-                var already = _globals.Get(moduleName);
-                return already;
-            } catch{}
+            var already = _globals.Get(moduleName);
+            if (already is not null)
+                return already.Value; // If the module is already among the globals
 
             string filename = ResolveModulePath(moduleName);
             string fullPath = Path.GetFullPath(filename);
@@ -239,10 +238,12 @@ public class Interpreter
             if (tableValRes.IsError)
             {
                 var baseTableRes = _env.Get(aa.Table.Table);
-                if (baseTableRes.IsError) 
-                    return RuntimeResult.Error(baseTableRes);
+                if (baseTableRes is null)
+                    return RuntimeResult.Error(Value.FromError(new Error(
+                        ErrorCode.SemanticUndefinedVariable, errorStack: [.. _callStack], args: [aa]
+                    )));
 
-                var baseTable = baseTableRes.Table;
+                var baseTable = baseTableRes.Value.Table;
                 if (baseTable == null)
                     return RuntimeResult.Error(Value.FromError(new Error(
                         ErrorCode.RuntimeInvalidFunctionCall, errorStack: [.. _callStack],
@@ -254,7 +255,12 @@ public class Interpreter
             }
             else
             {
-                var tbl = _env.Get(aa.Table.Table).Table;
+                var tblRes = _env.Get(aa.Table.Table);
+                if (tblRes is null)
+                    return RuntimeResult.Error(Value.FromError(new Error(
+                        ErrorCode.SemanticUndefinedVariable, errorStack: [.. _callStack], args: [aa]
+                    )));
+                var tbl = tblRes.Value.Table;
                 if (tbl == null)
                     return RuntimeResult.Error(Value.FromError(new Error(
                         ErrorCode.RuntimeInvalidFunctionCall, errorStack: [.. _callStack],
@@ -266,7 +272,13 @@ public class Interpreter
             }
         }
         else{
-            _env.Assign(aa.Name, res.Value);
+            var r = _env.Assign(aa.Name, res.Value);
+            if (r.IsError)
+                return RuntimeResult.Error(Value.FromError(new Error(
+                        r.Error.Value, errorStack: [.. _callStack],
+                        args: [aa.Name]
+                    )));
+            
             return RuntimeResult.Nothing();
         }
     }
@@ -288,10 +300,8 @@ public class Interpreter
             foreach (var stmt in clause.Body)
             {
                 var result = ExecStmt(stmt);
-                if (result.IsError)
-                    return RuntimeResult.Error(result.Value);
-                if (result.IsReturn)
-                    return RuntimeResult.Return(Value.Nil());
+                if (result.IsError || result.IsReturn)
+                    return result;
             }
         }
         return RuntimeResult.Nothing();
@@ -310,8 +320,8 @@ public class Interpreter
             foreach (var s in stmt.Body)
             {
                 var res = ExecStmt(s);
-                if (res.IsError) return RuntimeResult.Error(res.Value);
-                if (res.IsReturn) return RuntimeResult.Return(res.Value);
+                if (res.IsError || res.IsReturn)
+                    return res;
             }
         }
         return RuntimeResult.Nothing();
@@ -368,7 +378,7 @@ public class Interpreter
             ));
 
             var local = new Environment(_env);
-            var thisTbl = _env.Get(fd.Table).Table;
+            var thisTbl = _env.Get(fd.Table)?.Table; ///
             if (thisTbl != null)
                 local.Define("this", Value.FromTable(thisTbl));
             for (int i = 0; i < fd.Params.Count; i++)
@@ -389,15 +399,13 @@ public class Interpreter
             _callStack.Pop();
 
             // Return type
-            if (execRes.IsError)
-                return execRes.Value;
-            if (execRes.IsReturn)
+            if (execRes.IsError || execRes.IsReturn)
                 return execRes.Value;
             return Value.Nil();
         });
 
         var tblVal = _env.Get(fd.Table);
-        var tbl = tblVal.Table ?? new Dictionary<string, Value>();
+        var tbl = tblVal?.Table ?? new Dictionary<string, Value>(); ///
         _env.Define(fd.Table, Value.FromTable(tbl));
         tbl[fd.Name] = Value.FromFunc(func);
 
@@ -407,8 +415,10 @@ public class Interpreter
     private RuntimeResult EvalExpr(Ast expr) => expr switch
     {
         LiteralNumber ln => RuntimeResult.Normal(Value.FromNumber(ln.Value)),
+        LiteralNil       => RuntimeResult.Normal(Value.Nil()),
+        LiteralBool lb   => RuntimeResult.Normal(Value.FromBool(lb.Value)),
         LiteralString ls => RuntimeResult.Normal(Value.FromString(ls.Value)),
-        Ident id         => RuntimeResult.Normal(_env.Get(id.Name)),
+        Ident id         => RuntimeResult.Normal(_env.Get(id.Name).Value), ///
         TableLiteral tl  => EvalTable(tl),
         TableAccess ta   => EvalTableAccess(ta),
         CallExpr ce      => EvalCall(ce),
@@ -433,9 +443,11 @@ public class Interpreter
     private RuntimeResult EvalTableAccess(TableAccess ta)
     {
         var tblVal = _env.Get(ta.Table);
-        if (tblVal.IsError) return RuntimeResult.Error(tblVal);
+        if (tblVal is null) return RuntimeResult.Error(Value.FromError(new Error(
+                ErrorCode.SemanticUndefinedVariable, errorStack: [.. _callStack], args: [ta.Table]
+            )));
 
-        var tbl = tblVal.Table;
+        var tbl = tblVal?.Table;
         if (tbl != null && tbl.TryGetValue(ta.Key, out var v))
             return RuntimeResult.Normal(v);
 
