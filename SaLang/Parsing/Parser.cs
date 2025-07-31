@@ -86,10 +86,10 @@ public class Parser
         }
 
         if (Match(TokenType.Symbol, "="))
-            {
-                TraceExit();
-                return ParseVarAssign(expr).Upcast<VarAssign, Ast>();
-            }
+        {
+            TraceExit();
+            return ParseVarAssign(expr).Upcast<VarAssign, Ast>();
+        }
         if (Match(TokenType.Keyword, "as")) // Read-only var declaration
         {
             var name = Curr.Lexeme;
@@ -164,10 +164,10 @@ public class Parser
             Match(TokenType.Symbol, ",");
         }
 
-        var rawBody = ParseBlockBody();
+        var rawBody = ParseBlockBody(alreadyInside: false);
         var bodyRes = rawBody.Sequence();
         if (bodyRes.TryGetError(out var err)) return SyntaxResult<FuncDecl>.Fail(err);
-
+        Match(TokenType.Keyword, "end");
         TraceExit();
         return SyntaxResult<FuncDecl>.Ok(new FuncDecl
         {
@@ -188,7 +188,7 @@ public class Parser
         if (cond.TryGetError(out var err)) return SyntaxResult<IfStmt>.Fail(err);
         
         Match(TokenType.Keyword, "then");
-        var rawThenStmts = ParseBlockBody("elseif", "else", "not", "end");
+        var rawThenStmts = ParseBlockBody(alreadyInside: false, "elseif", "else", "not", "end");
         var thenbodyRes = rawThenStmts.Sequence();
         if (thenbodyRes.TryGetError(out var tErr)) return SyntaxResult<IfStmt>.Fail(tErr);
         
@@ -200,7 +200,7 @@ public class Parser
             if (elifCond.TryGetError(out var effErr)) return SyntaxResult<IfStmt>.Fail(effErr);
 
             Match(TokenType.Keyword, "then");
-            var rawElifStmts = ParseBlockBody("elseif", "else", "not", "end");
+            var rawElifStmts = ParseBlockBody(alreadyInside: false, "elseif", "else", "not", "end");
             var elifbodyRes = rawElifStmts.Sequence();
             if (elifbodyRes.TryGetError(out var fErr)) return SyntaxResult<IfStmt>.Fail(fErr);
             
@@ -210,7 +210,7 @@ public class Parser
         if (Match(TokenType.Keyword, "else") || Match(TokenType.Keyword, "not"))
         {
             Match(TokenType.Keyword, "so");
-            var rawElseStmts = ParseBlockBody("end");
+            var rawElseStmts = ParseBlockBody(alreadyInside: false, "end");
             var elseBodyRes = rawElseStmts.Sequence();
             if (elseBodyRes.TryGetError(out var eErr)) return SyntaxResult<IfStmt>.Fail(eErr);
 
@@ -233,7 +233,7 @@ public class Parser
 
         Match(TokenType.Keyword, "do");
 
-        var rawBody = ParseBlockBody();
+        var rawBody = ParseBlockBody(alreadyInside: true);
         var bodyRes = rawBody.Sequence();
         if (bodyRes.TryGetError(out var err)) return SyntaxResult<ForInStmt>.Fail(err);
         var body = bodyRes.Expect();
@@ -256,7 +256,7 @@ public class Parser
         
         Match(TokenType.Keyword, "do");
 
-        var rawBody = ParseBlockBody();
+        var rawBody = ParseBlockBody(alreadyInside: true);
         var bodyRes = rawBody.Sequence();
         if (bodyRes.TryGetError(out var bErr)) return SyntaxResult<WhileStmt>.Fail(bErr);
         var body = bodyRes.Expect();
@@ -324,7 +324,6 @@ public class Parser
 
             left = new CallExpr { Callee = new Ident { Name = funcName }, Args = new List<Ast> { left, right } };
         }
-
         return SyntaxResult<Ast>.Ok(left);
     }
 
@@ -408,36 +407,16 @@ public class Parser
         return SyntaxResult<Ast>.Ok(expr);
     }
 
-    /// <summary>
-    /// Reads from the current token until the `end` that closes the initial block, respecting nesting
-    /// </summary>
-    private List<SyntaxResult<Ast>> ParseBlockBody()
-    {
-        var body = new List<SyntaxResult<Ast>>();
-        int depth = 1;
-
-        while (depth > 0 && !Match(TokenType.EOF))
-        {
-            if (Curr.Type == TokenType.Keyword && Curr.Lexeme == "function" || Curr.Lexeme == "do"){
-                depth++; body.Add(ParseStmt());
-            }
-            else if (Curr.Type == TokenType.Keyword && Curr.Lexeme == "end"){
-                cur++; depth--;
-            }
-            else
-                body.Add(ParseStmt());
-        }
-
-        return body;
-    }
+    private List<SyntaxResult<Ast>> ParseBlockBody(bool alreadyInside)
+        => ParseBlockBody(alreadyInside, "end");
 
     /// <summary>
     /// Reads from the current token until one of the specified terminators, respecting nested blocks
     /// </summary>
-    private List<SyntaxResult<Ast>> ParseBlockBody(params string[] terminators)
+    private List<SyntaxResult<Ast>> ParseBlockBody(bool alreadyInside, params string[] terminators)
     {
         var body = new List<SyntaxResult<Ast>>();
-        int depth = 0;
+        int depth = alreadyInside? 1 : 0;
         var terms = new HashSet<string>(terminators) { "end" };
 
         while (cur < _tokens.Count)
@@ -458,8 +437,7 @@ public class Parser
 
             if (Curr.Type == TokenType.Keyword && Curr.Lexeme == "end")
             {
-                if (depth > 0)
-                {
+                if (depth > 0){
                     depth--; cur++; continue;
                 }
                 else
