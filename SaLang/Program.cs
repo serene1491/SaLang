@@ -22,6 +22,7 @@ public static class Engine
 
         while (true)
         {
+            Console.Write("> ");
             string code = Console.ReadLine();
             if (string.IsNullOrEmpty(code))
                 break;
@@ -43,13 +44,16 @@ public static class Engine
                 var moduleInterp = new Interpreter();
                 var result = moduleInterp.Interpret(programNode);
                 if (result.IsError)
+                {
                     Console.WriteLine($"{result}");
+                    continue;
+                }
+                Console.WriteLine($"[finished] << {result}");
             }
             catch (Exception ex)
             {
                 Console.WriteLine(ex);
             }
-            Console.WriteLine("[finished]");
         }
     }
 }

@@ -76,7 +76,7 @@ public class Interpreter
         {
             ["print"] = args =>
             {
-                var v = args.Count > 0 ? args[0] : Value.Nil();
+                var v = args.Count > 0 ? args[0] : Value.FromString("");
                 Console.WriteLine(v.ToString());
                 return Value.Nil();
             },

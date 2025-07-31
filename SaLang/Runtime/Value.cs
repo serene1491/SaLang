@@ -55,7 +55,7 @@ public readonly struct Value
         {
           ValueKind.Number   => Number.Value.ToString(),
           ValueKind.String   => String,
-          ValueKind.Bool     => Bool?.ToString() ?? "nil<bool>",
+          ValueKind.Bool     => Bool.Value? "true" : "false"  ?? "nil<bool>",
           ValueKind.Table    => "table",
           ValueKind.Function => "function",
           ValueKind.Nil      => "nil",
