@@ -164,7 +164,7 @@ public class Parser
             Match(TokenType.Symbol, ",");
         }
 
-        var rawBody = ParseBlockBody(alreadyInside: false);
+        var rawBody = ParseBlockBody(alreadyInside: false, "end");
         var bodyRes = rawBody.Sequence();
         if (bodyRes.TryGetError(out var err)) return SyntaxResult<FuncDecl>.Fail(err);
         Match(TokenType.Keyword, "end");
@@ -233,7 +233,7 @@ public class Parser
 
         Match(TokenType.Keyword, "do");
 
-        var rawBody = ParseBlockBody(alreadyInside: true);
+        var rawBody = ParseBlockBody(alreadyInside: true, "end");
         var bodyRes = rawBody.Sequence();
         if (bodyRes.TryGetError(out var err)) return SyntaxResult<ForInStmt>.Fail(err);
         var body = bodyRes.Expect();
@@ -256,7 +256,7 @@ public class Parser
         
         Match(TokenType.Keyword, "do");
 
-        var rawBody = ParseBlockBody(alreadyInside: true);
+        var rawBody = ParseBlockBody(alreadyInside: true, "end");
         var bodyRes = rawBody.Sequence();
         if (bodyRes.TryGetError(out var bErr)) return SyntaxResult<WhileStmt>.Fail(bErr);
         var body = bodyRes.Expect();
@@ -406,9 +406,6 @@ public class Parser
 
         return SyntaxResult<Ast>.Ok(expr);
     }
-
-    private List<SyntaxResult<Ast>> ParseBlockBody(bool alreadyInside)
-        => ParseBlockBody(alreadyInside, "end");
 
     /// <summary>
     /// Reads from the current token until one of the specified terminators, respecting nested blocks
