@@ -32,6 +32,7 @@ public static class ErrorCodeExtensions
             ErrorCode.RuntimeStackOverflow       => "E-R4005",
             ErrorCode.RuntimeTypeCastFailure     => "E-R4006",
             ErrorCode.RuntimeThrownException     => "E-R4007",
+            ErrorCode.RuntimeKeyNotFound         => "E-R4008",
             #endregion
 
             #region I/O & Environment (E-I5xxx)
@@ -41,11 +42,12 @@ public static class ErrorCodeExtensions
             #endregion
 
             #region Internal / Tooling (E-X9xxx)
-            ErrorCode.InternalAssertionFailed    => "E-X9001",
-            ErrorCode.InternalThrowDuringExecution => "E-X9002",
+            ErrorCode.InternalAssertionFailed           => "E-X9001",
+            ErrorCode.InternalThrowDuringExecution      => "E-X9002",
+            ErrorCode.InternalUnsupportedExpressionType => "E-X9003",
             #endregion
 
-            _ => "E-UNKNOWN"
+            _ => $"E-UNKNOWN {code}"
         };
     }
 
@@ -77,6 +79,7 @@ public static class ErrorCodeExtensions
             ErrorCode.RuntimeStackOverflow       => "Stack overflow.",
             ErrorCode.RuntimeTypeCastFailure     => "Cannot cast from '{0}' to '{1}'.",
             ErrorCode.RuntimeThrownException     => "Unhandled exception: {0}.",
+            ErrorCode.RuntimeKeyNotFound         => "Key '{0}' not found in table '{1}'.",
 
             // I/O & Environment (E-I5xxx)
             ErrorCode.IOFileNotFound             => "File not found: '{0}'.",
@@ -87,8 +90,10 @@ public static class ErrorCodeExtensions
             ErrorCode.InternalAssertionFailed    => "Internal assertion failed: {0}.",
             ErrorCode.InternalThrowDuringExecution
                                                 => "Interpreter threw an internal error: {0}.",
+            ErrorCode.InternalUnsupportedExpressionType
+                                                => "Unsupported expression type: {0}.",
                 
-            _ => $"Unhandled- {code}."
+            _ => $"E-UNKNOWN {code}"
         };
 
         return args.Length > 0
