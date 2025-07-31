@@ -16,41 +16,32 @@ public static class TestRunner
         foreach (var file in files)
         {
             Console.WriteLine($"\nTasting: {file}");
+            string code = File.ReadAllText(file);
 
-            try
+            var lexer = new Lexer(code);
+            var tokens = lexer.Tokenize();
+
+            var parser = new Parser(file);
+            var ast = parser.Parse(tokens);
+            if (ast.IsError)
             {
-                string code = File.ReadAllText(file);
-
-                var lexer = new Lexer(code);
-                var tokens = lexer.Tokenize();
-
-                var parser = new Parser(file);
-                var ast = parser.Parse(tokens);
-                if (ast.IsError)
-                {
-                    ast.TryGetError(out Error error);
-                    Console.WriteLine($"❌ Bitter {Path.GetFullPath(file)}: Syntax Exception");
-                    Console.WriteLine($"{error}");
-                    continue;
-                }
-                ast.TryGetValue(out ProgramNode programNode);
-
-                var moduleInterp = new Interpreter();
-                var result = moduleInterp.Interpret(programNode);
-                if (result.IsError)
-                {
-                    Console.WriteLine($"❌ Bitter {Path.GetFullPath(file)}: Runtime Exception");
-                    Console.WriteLine($"{result}");
-                    continue;
-                }
-
-                Console.WriteLine($"✅ Sweet. {Path.GetFullPath(file)}");
+                ast.TryGetError(out Error error);
+                Console.WriteLine($"❌ Bitter {Path.GetFullPath(file)}: Syntax Exception");
+                Console.WriteLine($"{error}");
+                continue;
             }
-            catch (Exception ex)
+            ast.TryGetValue(out ProgramNode programNode);
+
+            var moduleInterp = new Interpreter();
+            var result = moduleInterp.Interpret(programNode);
+            if (result.IsError)
             {
-                Console.WriteLine($"❌ Bitter. {Path.GetFullPath(file)}:");
-                Console.WriteLine(ex.Message);
+                Console.WriteLine($"❌ Bitter {Path.GetFullPath(file)}: Runtime Exception");
+                Console.WriteLine($"{result}");
+                continue;
             }
+
+            Console.WriteLine($"✅ Sweet. {Path.GetFullPath(file)}");
         }
     }
 }

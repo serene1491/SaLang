@@ -5,7 +5,7 @@ end
 
 table.method() as result
 
-result.ok then
+if result.ok then
     std.print('no problems!..')
 not so
     std.print(result.fail)

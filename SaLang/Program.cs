@@ -27,33 +27,26 @@ public static class Engine
             if (string.IsNullOrEmpty(code))
                 break;
 
-            try
+            var lex = new Lexer(code);
+            var toks = lex.Tokenize();
+            var parser = new Parser();
+            var ast = parser.Parse(toks);
+            if (ast.IsError)
             {
-                var lex = new Lexer(code);
-                var toks = lex.Tokenize();
-                var parser = new Parser();
-                var ast = parser.Parse(toks);
-                if (ast.IsError)
-                {
-                    ast.TryGetError(out Error error);
-                    Console.WriteLine($"{error}");
-                    continue;
-                }
-                ast.TryGetValue(out ProgramNode programNode);
+                ast.TryGetError(out Error error);
+                Console.WriteLine($"{error}");
+                continue;
+            }
+            ast.TryGetValue(out ProgramNode programNode);
 
-                var moduleInterp = new Interpreter();
-                var result = moduleInterp.Interpret(programNode);
-                if (result.IsError)
-                {
-                    Console.WriteLine($"{result}");
-                    continue;
-                }
-                Console.WriteLine($"[finished] << {result}");
-            }
-            catch (Exception ex)
+            var moduleInterp = new Interpreter();
+            var result = moduleInterp.Interpret(programNode);
+            if (result.IsError)
             {
-                Console.WriteLine(ex);
+                Console.WriteLine($"{result}");
+                continue;
             }
+            Console.WriteLine($"[finished] << {result}");
         }
     }
 }

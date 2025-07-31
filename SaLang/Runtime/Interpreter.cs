@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using SaLang.Analyzers;
 using SaLang.Analyzers.Runtime;
+using SaLang.Analyzers.Semantic;
 using SaLang.Common;
 using SaLang.Lexing;
 using SaLang.Parsing;
@@ -237,11 +238,9 @@ public class Interpreter
             var tableValRes = EvalTableAccess(new TableAccess { Table = aa.Table.Table, Key = aa.Table.Key });
             if (tableValRes.IsError)
             {
-                var baseTableRes = _env.Get(aa.Table.Table);
-                if (baseTableRes is null)
-                    return RuntimeResult.Error(Value.FromError(new Error(
-                        ErrorCode.SemanticUndefinedVariable, errorStack: [.. _callStack], args: [aa]
-                    )));
+                var baseTableRes = ResolveIdentifier(aa.Table.Table);
+                if (baseTableRes.IsError)
+                    return baseTableRes;
 
                 var baseTable = baseTableRes.Value.Table;
                 if (baseTable == null)
@@ -255,11 +254,9 @@ public class Interpreter
             }
             else
             {
-                var tblRes = _env.Get(aa.Table.Table);
-                if (tblRes is null)
-                    return RuntimeResult.Error(Value.FromError(new Error(
-                        ErrorCode.SemanticUndefinedVariable, errorStack: [.. _callStack], args: [aa]
-                    )));
+                var tblRes = ResolveIdentifier(aa.Table.Table);
+                if (tblRes.IsError) return tblRes;
+
                 var tbl = tblRes.Value.Table;
                 if (tbl == null)
                     return RuntimeResult.Error(Value.FromError(new Error(
@@ -272,12 +269,12 @@ public class Interpreter
             }
         }
         else{
-            var r = _env.Assign(aa.Name, res.Value);
+            SemanticResult r = _env.Assign(aa.Name, res.Value);
             if (r.IsError)
                 return RuntimeResult.Error(Value.FromError(new Error(
-                        r.Error.Value, errorStack: [.. _callStack],
-                        args: [aa.Name]
-                    )));
+                    r.Error.Value, errorStack: [.. _callStack],
+                    args: [aa.Name]
+                )));
             
             return RuntimeResult.Nothing();
         }
@@ -378,9 +375,10 @@ public class Interpreter
             ));
 
             var local = new Environment(_env);
-            var thisTbl = _env.Get(fd.Table)?.Table; ///
-            if (thisTbl != null)
-                local.Define("this", Value.FromTable(thisTbl));
+            var thisTbl = ResolveIdentifier(fd.Table);
+            if (thisTbl.IsError) return thisTbl.Value;
+            
+            local.Define("this", Value.FromTable(thisTbl.Value.Table));
             for (int i = 0; i < fd.Params.Count; i++)
                 local.Define(fd.Params[i], i < args.Count ? args[i] : Value.Nil());
 
@@ -404,8 +402,10 @@ public class Interpreter
             return Value.Nil();
         });
 
-        var tblVal = _env.Get(fd.Table);
-        var tbl = tblVal?.Table ?? new Dictionary<string, Value>(); ///
+        var tblVal = ResolveIdentifier(fd.Table);
+        if (tblVal.IsError) return tblVal;
+
+        var tbl = tblVal.Value.Table ?? new Dictionary<string, Value>();
         _env.Define(fd.Table, Value.FromTable(tbl));
         tbl[fd.Name] = Value.FromFunc(func);
 
@@ -418,7 +418,7 @@ public class Interpreter
         LiteralNil       => RuntimeResult.Normal(Value.Nil()),
         LiteralBool lb   => RuntimeResult.Normal(Value.FromBool(lb.Value)),
         LiteralString ls => RuntimeResult.Normal(Value.FromString(ls.Value)),
-        Ident id         => RuntimeResult.Normal(_env.Get(id.Name).Value), ///
+        Ident id         => ResolveIdentifier(id.Name),
         TableLiteral tl  => EvalTable(tl),
         TableAccess ta   => EvalTableAccess(ta),
         CallExpr ce      => EvalCall(ce),
@@ -427,6 +427,22 @@ public class Interpreter
                 args: [$"{expr.GetType().Name}"]
             )))
     };
+
+    private RuntimeResult ResolveIdentifier(string name)
+    {
+        var maybe = _env.Get(name);
+        if (maybe == null)
+        {
+            return RuntimeResult.Error(
+                Value.FromError(new Error(
+                    ErrorCode.SemanticUndefinedVariable,
+                    errorStack: [.. _callStack],
+                    args: [name]
+                ))
+            );
+        }
+        return RuntimeResult.Normal(maybe.Value);
+    }
 
     private RuntimeResult EvalTable(TableLiteral tl)
     {
@@ -442,12 +458,10 @@ public class Interpreter
 
     private RuntimeResult EvalTableAccess(TableAccess ta)
     {
-        var tblVal = _env.Get(ta.Table);
-        if (tblVal is null) return RuntimeResult.Error(Value.FromError(new Error(
-                ErrorCode.SemanticUndefinedVariable, errorStack: [.. _callStack], args: [ta.Table]
-            )));
+        var tblVal = ResolveIdentifier(ta.Table);
+        if (tblVal.IsError) return tblVal;
 
-        var tbl = tblVal?.Table;
+        var tbl = tblVal.Value.Table;
         if (tbl != null && tbl.TryGetValue(ta.Key, out var v))
             return RuntimeResult.Normal(v);
 
