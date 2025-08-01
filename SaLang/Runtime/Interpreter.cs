@@ -26,6 +26,17 @@ public class Interpreter
         RegisterDefaultBuiltins();
     }
 
+    public Value Interpret(ProgramNode prog)
+    {
+        foreach (var stmt in prog.Stmts)
+        {
+            var res = ExecStmt(stmt);
+            if (res.IsError) return res.Value;
+            if (res.IsReturn) return res.Value;
+        }
+        return Value.FromNumber(0);
+    }
+    
     /// <summary>
     /// Public hook for adding a single built‑in function under a friendly span.
     /// </summary>
@@ -40,8 +51,8 @@ public class Interpreter
         Value wrapped(List<Value> args)
         {
             _callStack.Push(new TraceFrame(name, friendlySource, line, column));
-            try{ return implementation(args); }
-            finally{ _callStack.Pop(); }
+            try { return implementation(args); }
+            finally { _callStack.Pop(); }
         }
 
         _globals.Define(name, Value.FromFunc(wrapped));
@@ -163,17 +174,6 @@ public class Interpreter
     {
         if (!moduleName.EndsWith(".sal")) moduleName += ".sal";
         return Path.Combine("modules", moduleName);
-    }
-
-    public Value Interpret(ProgramNode prog)
-    {
-        foreach (var stmt in prog.Stmts)
-        {
-            var res = ExecStmt(stmt);
-            if (res.IsError) return res.Value;
-            if (res.IsReturn) return res.Value;
-        }
-        return Value.Nil(); // Natural end of flow
     }
 
     private RuntimeResult ExecStmt(Ast node)
