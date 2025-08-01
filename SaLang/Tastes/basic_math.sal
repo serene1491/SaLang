@@ -1,4 +1,0 @@
-require('std') as std
-99 + 100 / 100 as myNumber
-
-std.print(myNumber)

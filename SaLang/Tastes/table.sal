@@ -1,9 +1,0 @@
-require('std') as std
-
-var people = {money = 1124}
-
-function people.showMoney()
-    std.print(this.money)
-end
-
-people.showMoney()

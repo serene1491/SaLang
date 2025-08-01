@@ -5,6 +5,7 @@ using SaLang.Parsing;
 using SaLang.Lexing;
 using SaLang.Runtime;
 using SaLang.Syntax.Nodes;
+using SaLang.Analyzers;
 namespace SaLang.Tests.Runtime;
 
 public class InterpreterTests
@@ -96,5 +97,111 @@ public class InterpreterTests
         var result = Execute(code);
         Assert.True(result.IsError);
         Assert.Contains("Undefined variable", result.ToString());
+    }
+
+    [Fact]
+    public void ForIn_TableIterationAndNestedLoops()
+    {
+        var code = @"
+            var table = { a = 1, b = 2, c = 3 }
+            var sum = 0
+            
+            for k in table do
+                for l in table do
+                    sum = sum + l
+                end
+            end
+
+            return sum
+        ";
+        var result = Execute(code);
+        Assert.False(result.IsError);
+        Assert.Equal(0, result.Number.Value);
+    }
+
+    [Fact]
+    public void RequireBuiltinLibraryAndUsePrint()
+    {
+        var code = @"
+            require('std') as std
+            return std.print('Hello World!')
+        ";
+        var result = Execute(code);
+        Assert.False(result.IsError);
+        Assert.Equal(ValueKind.Nil, result.Kind);
+    }
+
+    [Fact]
+    public void AssignToReadonly_ThrowsSemanticError()
+    {
+        var code = @"
+            100 as one_hundred
+            one_hundred = 99
+        ";
+        var result = Execute(code);
+        Assert.Equal(ErrorCode.SemanticReadonlyAssignment, result.Error.Value.Code);
+    }
+
+    [Fact]
+    public void TrustedValuesInIfConditions()
+    {
+        var code = @"
+            var f = false
+
+            if 0 then
+                f = true
+            elseif 1 - 2 then
+                f = true
+            elseif false then
+                f = true
+            not so
+                f = false
+            end
+
+            if f then return 1 end
+            return 0
+        ";
+        var result = Execute(code);
+        Assert.False(result.IsError);
+        Assert.Equal(0, result.Number.Value);
+    }
+
+    [Fact]
+    public void ReturnInterruptsFollowingStatements()
+    {
+        var code = @"
+            return 0
+            std.error('')
+        ";
+        var result = Execute(code);
+        Assert.False(result.IsError);
+        Assert.Equal(0, result.Number.Value);
+    }
+
+    [Fact]
+    public void RequireNonexistentModule_ProducesIoError()
+    {
+        var code = @"
+            require('meme') as u
+            u.scream()
+        ";
+        var result = Execute(code);
+        Assert.False(result.IsError);
+        Assert.Equal(0, result.Number.Value);
+    }
+
+    [Fact]
+    public void TableMethodCall()
+    {
+        var code = @"
+            require('std') as std
+            var people = { money = 1124 }
+
+            function people.showMoney() return this.money end
+            return people.showMoney()
+        ";
+        var result = Execute(code);
+        Assert.False(result.IsError);
+        Assert.Equal(1124, result.Number.Value);
     }
 }

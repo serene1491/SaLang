@@ -1,4 +1,0 @@
-require('std') as std
-var something = std.read('Say something!')
-
-std.print(something)

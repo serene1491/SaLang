@@ -1,3 +1,0 @@
-return nil
-
-std.print('this message will not show')

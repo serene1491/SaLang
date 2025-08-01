@@ -1,9 +1,0 @@
-require('std') as std
-
-var MyTable = {}
-
-function MyTable.MyMethod()
-    std()
-end
-
-MyTable.MyMethod()

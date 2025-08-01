@@ -2,7 +2,7 @@ require ('std')
 
 var t = {}
 
-function t.gritar()
+function t.scream()
     std.print('AAAAAAAAAAAAAAAAAAAAAAA')
 end
 
