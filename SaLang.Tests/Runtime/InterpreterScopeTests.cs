@@ -65,7 +65,8 @@ public class InterpreterScopeTests
     public void FunctionLocals_DoNotLeakOut()
     {
         var code = @"
-            function g()
+            var t = {}
+            function t.g()
                 var tmp = 99
                 return tmp
             end
