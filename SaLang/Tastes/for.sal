@@ -1,8 +1,0 @@
-var table = { a = 1, b = 2, c = 3 }
-
-for k in table do
-    std.print(k)
-    for k in table do
-        std.print(k)
-    end
-end

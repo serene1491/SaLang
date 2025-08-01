@@ -1,25 +1,15 @@
 ﻿using SaLang.Analyzers;
 using SaLang.Lexing;
 using SaLang.Parsing;
-using SaLang.Runtime;
 using SaLang.Syntax.Nodes;
 using System;
 namespace SaLang;
 
 // Engine
-public static class Engine
+public static partial class Interpreter
 {
     public static void Main(string[] args)
     {
-        if (args.Length > 0)
-        {
-            if (args[0] == "taste-mode")
-            {
-                TestRunner.RunAllTests();
-                return;
-            }
-        }
-
         while (true)
         {
             Console.Write("> ");
@@ -39,7 +29,7 @@ public static class Engine
             }
             ast.TryGetValue(out ProgramNode programNode);
 
-            var moduleInterp = new Interpreter();
+            var moduleInterp = new Runtime.Interpreter();
             var result = moduleInterp.Interpret(programNode);
             if (result.IsError)
             {

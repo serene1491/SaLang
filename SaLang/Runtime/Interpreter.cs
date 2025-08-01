@@ -286,21 +286,21 @@ public class Interpreter
         {
             if (clause.Condition != null)
             {
-                var condResult = EvalExpr(clause.Condition).Value;
-                if (condResult.Kind == ValueKind.Error)
-                    return RuntimeResult.Normal(condResult);
-                if (!IsTruthy(condResult))
+                var condRes = EvalExpr(clause.Condition);
+                if (condRes.IsError)
+                    return RuntimeResult.Error(condRes.Value);
+                if (!IsTruthy(condRes.Value))
                     continue;
             }
 
-            // Can execute the body (as else or as truthy result)
             foreach (var stmt in clause.Body)
             {
-                var result = ExecStmt(stmt);
-                if (result.IsError || result.IsReturn)
-                    return result;
+                var r = ExecStmt(stmt);
+                if (r.IsError || r.IsReturn) return r;
             }
+            return RuntimeResult.Nothing();
         }
+
         return RuntimeResult.Nothing();
     }
 
