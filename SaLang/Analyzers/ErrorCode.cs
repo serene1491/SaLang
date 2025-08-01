@@ -54,6 +54,11 @@ public enum ErrorCode
     SemanticReadonlyAssignment,
 
     /// <summary>
+    /// E‑T2005: Mismatch arguments for '{0}': expected {1}, got {2}.
+    /// </summary>
+    SemanticArgumentsMismatch,
+
+    /// <summary>
     /// E‑N3001: Duplicate declaration of '{0}'.
     /// </summary>
     SemanticDuplicateSymbol,

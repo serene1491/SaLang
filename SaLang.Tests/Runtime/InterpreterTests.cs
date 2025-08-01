@@ -1,10 +1,8 @@
 using System;
-using System.Linq;
 using Xunit;
 using SaLang.Parsing;
 using SaLang.Lexing;
 using SaLang.Runtime;
-using SaLang.Syntax.Nodes;
 using SaLang.Analyzers;
 namespace SaLang.Tests.Runtime;
 
@@ -14,7 +12,10 @@ public class InterpreterTests
     {
         var tokens = new Lexer(src).Tokenize();
         var prog = new Parser().Parse(tokens).Expect();
-        return new SaLang.Runtime.Interpreter().Interpret(prog);
+        var res = new SaLang.Runtime.Interpreter().Interpret(prog);
+        if (res.IsError)
+            Console.WriteLine(res);
+        return res;
     }
 
     [Fact]
@@ -100,23 +101,24 @@ public class InterpreterTests
     }
 
     [Fact]
-    public void ForIn_TableIterationAndNestedLoops()
+    public void ForIn_TableIterationAndNestedLoops() // TODO: ALLOW TUPLE IN FOR LOOP
     {
         var code = @"
             var table = { a = 1, b = 2, c = 3 }
-            var sum = 0
-            
+            var number = 0
+
             for k in table do
                 for l in table do
-                    sum = sum + l
+                    number = number + 1
                 end
             end
 
-            return sum
+            return number
         ";
         var result = Execute(code);
-        Assert.False(result.IsError);
-        Assert.Equal(0, result.Number.Value);
+        Assert.Equal(ValueKind.Number, result.Kind);
+        Assert.True(result.Number.HasValue);
+        Assert.Equal(9, result.Number);
     }
 
     [Fact]
@@ -186,8 +188,7 @@ public class InterpreterTests
             u.scream()
         ";
         var result = Execute(code);
-        Assert.False(result.IsError);
-        Assert.Equal(0, result.Number.Value);
+        Assert.True(result.IsError);
     }
 
     [Fact]
