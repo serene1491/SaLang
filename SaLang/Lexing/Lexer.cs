@@ -40,7 +40,8 @@ public class Lexer
             lex == "if"  || lex == "not"      || lex == "else"   ||
             lex == "so"  || lex == "elseif"   || lex == "then"   ||
             lex == "nil" || lex == "true"     || lex == "false"  ||
-            lex == "for" || lex == "in"       ||lex == "while" 
+            lex == "for" || lex == "unsafe"   ||lex == "while"   ||
+            lex == "in"
         ) ? TokenType.Keyword : TokenType.Identifier;
         tokens.Add(new Token(type, lex, line, c0));
     }

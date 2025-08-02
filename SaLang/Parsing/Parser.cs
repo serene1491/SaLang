@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using SaLang.Syntax;
 using SaLang.Common;
@@ -65,8 +64,10 @@ public class Parser
     {
         if (Match(TokenType.Keyword, "var"))
             return ParseVarDeclaration().Upcast<VarDeclaration, Ast>();
-        if (Match(TokenType.Keyword, "function"))
-            return ParseFunc().Upcast<FuncDecl, Ast>();
+        if (Check(TokenType.Keyword, "function"))
+            return ParseFunc(false).Upcast<FuncDecl, Ast>();
+        if (Match(TokenType.Keyword, "unsafe"))
+            return ParseFunc(true).Upcast<FuncDecl, Ast>();
         if (Match(TokenType.Keyword, "return"))
             return ParseReturn().Upcast<ReturnStmt, Ast>();
         if (Match(TokenType.Keyword, "if"))
@@ -140,8 +141,9 @@ public class Parser
         );
     }
 
-    private SyntaxResult<FuncDecl> ParseFunc()
+    private SyntaxResult<FuncDecl> ParseFunc(bool isUnsafe)
     {
+        Match(TokenType.Keyword, "function");
         TraceEnter("ParseFunc");
         // Capture span of 'function' keyword
         var funcToken = _tokens[cur - 1];
@@ -173,6 +175,7 @@ public class Parser
         {
             Span = span,
             Table = table,
+            Unsafe = isUnsafe,
             Name = fname,
             Params = ps,
             Body = bodyRes.Expect()
@@ -353,13 +356,17 @@ public class Parser
             expr = new LiteralString { Value = _tokens[cur - 1].Lexeme };
         else if (Match(TokenType.Identifier))
         {
-            string name = _tokens[cur - 1].Lexeme;
-            expr = new Ident { Name = name };
+            expr = new Ident { Name = _tokens[cur - 1].Lexeme };
+
             while (Match(TokenType.Symbol, "."))
             {
-                string key = _tokens[cur].Lexeme;
+                var key = Curr.Lexeme;
                 Match(TokenType.Identifier);
-                expr = new TableAccess { Table = ((Ident)expr).Name, Key = key };
+                expr = new TableAccess
+                {
+                    TableExpr = expr,
+                    Key       = key
+                };
             }
         }
         else if (Match(TokenType.Symbol, "{"))

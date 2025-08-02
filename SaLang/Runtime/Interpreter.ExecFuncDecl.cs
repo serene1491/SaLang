@@ -40,10 +40,11 @@ public partial class Interpreter
                         break;
                 }
 
-                if (execRes.IsReturn || execRes.IsError)
-                    return execRes.Value;
+                var raw = execRes.IsError || execRes.IsReturn
+                    ? execRes.Value
+                    : Value.Nil();
 
-                return Value.Nil();
+                return WrapUnsafe(raw, fd.Unsafe);
             }
             finally
             {
@@ -53,7 +54,8 @@ public partial class Interpreter
         });
 
         var tblRes = ResolveIdentifier(fd.Table);
-        if (tblRes.IsError) return tblRes;
+        if (tblRes.IsError)
+            return tblRes;
 
         var tbl = tblRes.Value.Table ?? new Dictionary<string, Value>();
         _env.Define(fd.Table, Value.FromTable(tbl));

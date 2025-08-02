@@ -19,6 +19,18 @@ public readonly struct Error
         ErrorStack = errorStack ?? new List<TraceFrame>();
     }
 
+    public string Message => Code.GetMessage(Args);
+
+    public string GetStack()
+    {
+        var stack = "\nStack trace:\n";
+
+        foreach (var frame in ErrorStack)
+            stack += $"    at {frame.FunctionName} in {frame.File}:{frame.Line};{frame.Column}\n";
+
+        return stack + "End atack trace";
+    }
+
     public string Build()
     {
         var codeStr = Code.GetCode();
@@ -26,13 +38,8 @@ public readonly struct Error
         string errorFormated = $"[{codeStr}] {errorMessage}";
         if (ErrorStack.Count < 1)
             return errorFormated;
-
-        errorFormated += "\nStack trace:\n";
-
-        foreach (var frame in ErrorStack)
-            errorFormated += $"    at {frame.FunctionName} in {frame.File}:{frame.Line};{frame.Column}\n";
-
-        return errorFormated + "End atack trace";
+        errorFormated += GetStack();
+        return errorFormated;
     }
 
     public override string ToString() => Build();

@@ -6,6 +6,7 @@ public class FuncDecl : Ast
 {
     public required Span Span;
     public required string Table;
+    public required bool Unsafe;
     public required string Name;
     public required List<string> Params;
     public required List<Ast> Body;

@@ -8,19 +8,16 @@ public partial class Interpreter
 {
     private RuntimeResult EvalCall(CallExpr ce)
     {
-        string name = ce.Callee switch
-        {
-            TableAccess t => t.Table + "." + t.Key,
-            Ident i       => i.Name,
-            _             => "<anonymous>"
-        };
+        // Reconstrói algo como "obj.method" recursivamente
+        string name = ExprToString(ce.Callee);
 
         var fnVal = EvalExpr(ce.Callee);
         if (fnVal.IsError) return fnVal;
         var fn = fnVal.Value.Func;
         if (fn == null)
             return RuntimeResult.Error(Value.FromError(new Error(
-                ErrorCode.RuntimeInvalidFunctionCall, errorStack: [.. _callStack],
+                ErrorCode.RuntimeInvalidFunctionCall,
+                errorStack: [.. _callStack],
                 args: [name]
             )));
 
@@ -32,10 +29,9 @@ public partial class Interpreter
             args.Add(av.Value);
         }
 
-        // Invoke
         var result = fn(args);
         if (result.IsError)
-            return RuntimeResult.Error(result); //TODO: Allow handling functions with errors
+            return RuntimeResult.Error(result);
 
         return RuntimeResult.Normal(result);
     }

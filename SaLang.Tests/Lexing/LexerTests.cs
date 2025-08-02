@@ -41,7 +41,8 @@ public class LexerTests
                      lex == "if"  || lex == "not"      || lex == "else"   ||
                      lex == "so"  || lex == "elseif"   || lex == "then"   ||
                      lex == "nil" || lex == "true"     || lex == "false"  ||
-                     lex == "for" || lex == "in"       ||lex == "while")
+                     lex == "for" || lex == "unsafe"   ||lex == "while"   ||
+                     lex == "in")
                 Assert.Equal(TokenType.Keyword, tok.Type);
             else if (char.IsLetter(lex[0]) || lex[0] == '_')
                 Assert.Equal(TokenType.Identifier, tok.Type);
