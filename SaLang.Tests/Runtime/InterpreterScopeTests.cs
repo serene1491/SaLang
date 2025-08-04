@@ -46,6 +46,20 @@ public class InterpreterScopeTests
     }
 
     [Fact]
+    public void AssignInIf_AffectsOut()
+    {
+        var code = @"
+            var a = nil
+            if true then
+                a = 1
+            end
+            return a
+        ";
+        var result = Execute(code);
+        Assert.Equal(1, result.Number);
+    }
+
+    [Fact]
     public void FunctionParameters_AreLocalToFunction()
     {
         var code = @"

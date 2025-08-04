@@ -4,6 +4,7 @@ using SaLang.Common;
 using SaLang.Syntax.Nodes;
 using SaLang.Analyzers.Syntax;
 using SaLang.Analyzers;
+using System;
 namespace SaLang.Parsing;
 
 // Parser
@@ -170,6 +171,10 @@ public class Parser
         var bodyRes = rawBody.Sequence();
         if (bodyRes.TryGetError(out var err)) return SyntaxResult<FuncDecl>.Fail(err);
         Match(TokenType.Keyword, "end");
+        //Console.WriteLine($"[ParseFunc] {table}.{fname} body statements: {bodyRes.Expect().Count}");
+        //foreach (var s in bodyRes.Expect())
+        //    Console.WriteLine("  → " + s.GetType().Name);
+
         TraceExit();
         return SyntaxResult<FuncDecl>.Ok(new FuncDecl
         {

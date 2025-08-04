@@ -119,15 +119,17 @@ public class InterpreterUnsafeTests
         var code = @"
             var c = {}
             unsafe function c.mayFail(x)
-                if x > 0 then return x end
+                if x then return x end
                 return std.error('bad')
             end
 
             var r1 = c.mayFail(5)
-            if r1.ok then var out1 = r1.ok * 2 else so var out1 = 0 end
-
-            var r2 = c.mayFail(-1)
-            if r2.fail then var out2 = 1 else so var out2 = 0 end
+            var r2 = c.mayFail(1 - 2)
+            var out1 = nil
+            var out2 = nil
+            
+            if r1.ok then out1 = r1.ok * 2 not so out1 = 0 end
+            if r2.fail then out2 = 1 not so out2 = 0 end
 
             return out1 + out2
         ";

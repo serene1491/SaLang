@@ -8,7 +8,7 @@ public partial class Interpreter
 {
     private RuntimeResult EvalCall(CallExpr ce)
     {
-        // Reconstrói algo como "obj.method" recursivamente
+        // Reconstruct something like "obj.method" recursively
         string name = ExprToString(ce.Callee);
 
         var fnVal = EvalExpr(ce.Callee);
