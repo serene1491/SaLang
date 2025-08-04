@@ -77,7 +77,7 @@ public static partial class Interpreter
             return 1;
         }
 
-        Console.WriteLine(result);
+        Console.WriteLine($"output result: {result}");
         return 0;
     }
 
