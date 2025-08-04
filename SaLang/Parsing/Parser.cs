@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using SaLang.Syntax;
 using SaLang.Common;
 using SaLang.Syntax.Nodes;
 using SaLang.Analyzers.Syntax;

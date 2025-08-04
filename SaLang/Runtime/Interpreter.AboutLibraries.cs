@@ -113,55 +113,63 @@ public partial class Interpreter
 
         AddBuiltin("require", args =>
         {
-            if (args.Count == 0 || args[0].String == null)
+            if (args.Count == 0 || args[0].String is not string moduleName)
                 return Value.FromError(new Error(
-                    ErrorCode.SemanticInvalidArguments, errorStack: [.. _callStack],
-                    args: ["require()", "string", args[0]]
+                    ErrorCode.SemanticInvalidArguments,
+                    errorStack: [.. _callStack],
+                    args: ["require()", "string", args.Count > 0 ? args[0] : "null"]
                 ));
-            string moduleName = args[0].String!;
-            
+
             var already = _globals.Get(moduleName);
             if (already is not null)
                 return already.Value; // If the module is already among the globals
 
-            string filename = ResolveModulePath(moduleName);
-            string fullPath = Path.GetFullPath(filename);
+            if (!moduleName.EndsWith(".sal"))
+                moduleName += ".sal";
 
-            if (!File.Exists(fullPath))
+            string baseDir = CurrentScriptPath is not null
+                ? Path.GetDirectoryName(CurrentScriptPath)!
+                : Directory.GetCurrentDirectory();
+
+            string candidate = Path.Combine(baseDir, "modules", moduleName);
+            if (!File.Exists(candidate))
+                candidate = Path.Combine(Directory.GetCurrentDirectory(), "modules", moduleName);
+
+            if (!File.Exists(candidate))
+            {
                 return Value.FromError(new Error(
-                    ErrorCode.IOFileNotFound, errorStack: [.. _callStack],
-                    args: [fullPath]
+                    ErrorCode.IOFileNotFound,
+                    errorStack: [.. _callStack],
+                    args: [candidate]
                 ));
-            string source = File.ReadAllText(filename);
+            }
+
+            string source = File.ReadAllText(candidate);
 
             var tokens = new Lexer(source).Tokenize();
-            var prog = new Parser(filename).Parse(tokens);
-            if (prog.IsError)
+            var progRes = new Parser(candidate).Parse(tokens);
+            if (progRes.IsError)
             {
-                prog.TryGetError(out Error error);
-                return Value.FromError(error);
+                progRes.TryGetError(out var err);
+                return Value.FromError(err);
             }
-            prog.TryGetValue(out ProgramNode programNode);
+            progRes.TryGetValue(out ProgramNode programNode);
 
-            var moduleInterp = new Interpreter();
-            var result = moduleInterp.Interpret(programNode);
-            if (result.IsError)
-                return result;
+            var moduleInterp2 = new Interpreter(candidate);
+            var result = moduleInterp2.Interpret(programNode);
+
+            if (result.IsError) return result;
+
             if (result.Kind != ValueKind.Table)
                 return Value.FromError(new Error(
-                    ErrorCode.IOReadError, errorStack: [.. _callStack],
-                    args: [result.Kind == ValueKind.Error? result : $"Expected an table return, got {result.Kind}"]
+                    ErrorCode.IOReadError,
+                    errorStack: [.. _callStack],
+                    args: [$"Expected a table return, got {result.Kind}"]
                 ));
 
-            return Value.FromTable(result.Table);
-
+            var table = result.Table;
+            return Value.FromTable(table);
         });
-    }
-
-    private static string ResolveModulePath(string moduleName)
-    {
-        if (!moduleName.EndsWith(".sal")) moduleName += ".sal";
-        return Path.Combine("modules", moduleName);
     }
     
     private Value GetNumberArg(List<Value> args, int idx, string funcName, int paramsIdx)

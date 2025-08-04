@@ -1,4 +1,4 @@
-namespace SaLang.Syntax;
+namespace SaLang.Common;
 
 public struct Token {
     public TokenType Type;

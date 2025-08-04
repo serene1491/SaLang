@@ -1,4 +1,4 @@
-namespace SaLang.Syntax;
+namespace SaLang.Common;
 
 // Token and types
 public enum TokenType {

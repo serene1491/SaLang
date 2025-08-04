@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-using SaLang.Syntax;
+using SaLang.Common;
 namespace SaLang.Lexing;
 
 public class Lexer
@@ -35,12 +35,12 @@ public class Lexer
         while (char.IsLetterOrDigit(Curr) || Curr == '_') Advance();
         var lex = src[st..i];
         var type = (
-            lex == "var" || lex == "function" || lex == "as"     ||
-            lex == "do"  || lex == "end"      || lex == "return" ||
-            lex == "if"  || lex == "not"      || lex == "else"   ||
-            lex == "so"  || lex == "elseif"   || lex == "then"   ||
-            lex == "nil" || lex == "true"     || lex == "false"  ||
-            lex == "for" || lex == "unsafe"   ||lex == "while"   ||
+            lex == "var" || lex == "function" || lex == "as" ||
+            lex == "do" || lex == "end" || lex == "return" ||
+            lex == "if" || lex == "not" || lex == "else" ||
+            lex == "so" || lex == "elseif" || lex == "then" ||
+            lex == "nil" || lex == "true" || lex == "false" ||
+            lex == "for" || lex == "unsafe" || lex == "while" ||
             lex == "in"
         ) ? TokenType.Keyword : TokenType.Identifier;
         tokens.Add(new Token(type, lex, line, c0));
