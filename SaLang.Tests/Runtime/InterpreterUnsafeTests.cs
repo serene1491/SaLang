@@ -200,7 +200,7 @@ public class InterpreterUnsafeTests
     }
 
     [Fact]
-    public void UnsafeFunction_RawValueHasNoOkFail()
+    public void UnsafeFunction_RawValueHasOkFail()
     {
         var code = @"
             var val = 5
@@ -215,8 +215,8 @@ public class InterpreterUnsafeTests
             return out
         ";
         var result = Execute(code);
-        Assert.False(result.IsError);
-        Assert.Equal(2, result.Number);
+        Assert.True(result.IsError);
+        Assert.Contains("[E-R4008]", result.String);
     }
 
     [Fact]

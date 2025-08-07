@@ -60,6 +60,54 @@ public class InterpreterScopeTests
     }
 
     [Fact]
+    public void ErrorInsideIf_WithoutUnsafe_StopsExecution()
+    {
+        var code = @"
+            var a = 0
+            if true then
+                a = 1
+                std.error('fail')
+            end
+            return a
+        ";
+        var result = Execute(code);
+        Assert.True(result.IsError);
+        Assert.Equal("Unhandled exception: fail.", result.Error.Value.Message);
+    }
+
+    [Fact]
+    public void AssignmentBeforeErrorInIf_Persists()
+    {
+        var code = @"
+            var a = 0
+            if true then
+                a = 42
+                std.error('fail')
+            end
+            return a
+        ";
+        var result = Execute(code);
+        Assert.True(result.IsError);
+    }
+
+    [Fact]
+    public void ErrorInElse_StopsExecution()
+    {
+        var code = @"
+            var a = 5
+            if false then
+                a = 1
+            else
+                std.error('fail in else')
+            end
+            return a
+        ";
+        var result = Execute(code);
+        Assert.True(result.IsError);
+        Assert.Equal("Unhandled exception: fail in else.", result.Error.Value.Message);
+    }
+
+    [Fact]
     public void FunctionParameters_AreLocalToFunction()
     {
         var code = @"
