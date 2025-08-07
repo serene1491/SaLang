@@ -1,9 +1,8 @@
-using System;
 using System.Linq;
 using System.Collections.Generic;
 using Xunit;
 using SaLang.Lexing;
-using SaLang.Syntax;
+using SaLang.Common;
 namespace SaLang.Tests.Lexing;
 
 public class LexerTests

@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using SaLang.Common;
 namespace SaLang.Lexing;
 
@@ -10,7 +12,11 @@ public class Lexer
     private readonly List<Token> tokens = new();
 
     private char Curr => i < src.Length ? src[i] : '\0';
-    private void Advance() { if (Curr == '\n') { line++; col = 1; } else col++; i++; }
+    private void Advance(int step = 1){
+        for (int k = 0; k < step; k++)
+        { if (Curr == '\n') { line++; col = 1; } else col++; i++; }
+    }
+    private char Peek1 => i + 1 < src.Length ? src[i + 1] : '\0';
 
     public List<Token> Tokenize()
     {
@@ -59,9 +65,25 @@ public class Lexer
         var str = src[st..i]; Advance();
         tokens.Add(new Token(TokenType.String, str, line, c0));
     }
+
+    private static readonly string[] TwoCharSymbols = [
+        "..", "==", "<=", ">=", "!=", "~=", "||", "&&"
+    ];
+
     private void ReadSymbol()
     {
-        int c0 = col; char c = Curr; Advance();
-        tokens.Add(new Token(TokenType.Symbol, c.ToString(), line, c0));
+        int c0 = col;
+
+        if (TwoCharSymbols.Contains($"{Curr}{Peek1}"))
+        {
+            var lex = $"{Curr}{Peek1}";
+            tokens.Add(new Token(TokenType.Symbol, lex, line, c0));
+            Advance(2);
+            return;
+        }
+        
+        var single = Curr.ToString();
+        tokens.Add(new Token(TokenType.Symbol, single, line, c0));
+        Advance();
     }
 }

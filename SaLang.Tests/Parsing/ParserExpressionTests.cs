@@ -17,7 +17,7 @@ public class ParserExpressionTests
     {
         var prog = Parse(expr);
         var call = Assert.IsType<CallExpr>(prog.Stmts[0] is ExpressionStmt es ? es.Expr : null);
-        Assert.Equal(op == "+" ? "sum" : "mul", ((Ident)call.Callee).Name);
+        Assert.Equal(op == "+" ? "__sum" : "__mul", ((Ident)call.Callee).Name);
     }
 
     [Theory]

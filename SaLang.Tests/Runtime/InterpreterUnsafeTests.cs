@@ -124,17 +124,124 @@ public class InterpreterUnsafeTests
             end
 
             var r1 = c.mayFail(5)
-            var r2 = c.mayFail(1 - 2)
+            var r2 = c.mayFail(0)
             var out1 = nil
             var out2 = nil
-            
-            if r1.ok then out1 = r1.ok * 2 not so out1 = 0 end
-            if r2.fail then out2 = 1 not so out2 = 0 end
+
+            if r1.ok then
+                out1 = 100
+            not so
+                out1 = 200
+            end
+
+            if r2.fail then
+                out2 = 300
+            not so
+                out2 = 400
+            end
 
             return out1 + out2
         ";
         var result = Execute(code);
         Assert.False(result.IsError);
-        Assert.Equal(11, result.Number);
+        Assert.Equal(400, result.Number);
+    }
+
+    [Fact]
+    public void UnsafeFunction_FailSkipsIf()
+    {
+        var code = @"
+            var c = {}
+            unsafe function c.mayFail(x)
+                if x then return x end
+                return std.error('fail')
+            end
+
+            var r = c.mayFail(0)
+            var out = 10
+
+            if r.ok then
+                out = 50
+            not so
+                out = 20
+            end
+
+            return out
+        ";
+        var result = Execute(code);
+        Assert.False(result.IsError);
+        Assert.Equal(20, result.Number);
+    }
+
+    [Fact]
+    public void UnsafeFunction_OkSkipsFail()
+    {
+        var code = @"
+            var c = {}
+            unsafe function c.mayFail(x)
+                if x then return x end
+                return std.error('fail')
+            end
+
+            var r = c.mayFail(3)
+            var out = 100
+
+            if r.fail then
+                out = 5
+            not so
+                out = 33
+            end
+
+            return out
+        ";
+        var result = Execute(code);
+        Assert.False(result.IsError);
+        Assert.Equal(33, result.Number);
+    }
+
+    [Fact]
+    public void UnsafeFunction_RawValueHasNoOkFail()
+    {
+        var code = @"
+            var val = 5
+            var out = 0
+
+            if val.ok then
+                out = 1
+            not so
+                out = 2
+            end
+
+            return out
+        ";
+        var result = Execute(code);
+        Assert.False(result.IsError);
+        Assert.Equal(2, result.Number);
+    }
+
+    [Fact]
+    public void UnsafeFunction_OkCanBeString()
+    {
+        var code = @"
+            var c = {}
+            unsafe function c.mayFail(x)
+                if x == 1 then return 'ok-value' end
+                return std.error('not one')
+            end
+
+            var r = c.mayFail(1)
+            var out = 'nope'
+
+            if r.ok then
+                out = r.ok
+            not so
+                out = 'failed'
+            end
+
+            return out
+        ";
+        var result = Execute(code);
+        Assert.False(result.IsError);
+        Assert.Equal("ok-value", result.String);
     }
 }

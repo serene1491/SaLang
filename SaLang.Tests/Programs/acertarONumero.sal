@@ -1,0 +1,19 @@
+require('std') as std
+
+std.print('Jogo De Acertar o Número')
+988 as numeroEscolhido
+
+while true do
+    tonumber(std.read('pense em um número ')) as pensado
+
+    if pensado > numeroEscolhido then
+        std.print('O número secreto é menor')
+    elseif pensado < numeroEscolhido then
+        std.print('O número secreto é maior')
+    elseif pensado ~= numeroEscolhido then
+        std.print('Você acertou o número!')
+        return 0
+    not so
+        std.print('Número Inválido')
+    end
+end

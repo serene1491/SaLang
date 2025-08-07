@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using SaLang.Analyzers;
 using SaLang.Analyzers.Runtime;
+using SaLang.Common;
 using SaLang.Syntax.Nodes;
 namespace SaLang.Runtime;
 
@@ -29,10 +30,26 @@ public partial class Interpreter
             args.Add(av.Value);
         }
 
-        var result = fn(args);
-        if (result.IsError)
-            return RuntimeResult.Error(result);
+        var callFrame = new TraceFrame(
+            name,
+            ce.Span.File,
+            ce.Span.Line,
+            ce.Span.Column
+        );
+        _callStack.Push(callFrame);
 
-        return RuntimeResult.Normal(result);
+        Value rawResult;
+        try
+        {
+            rawResult = fn(args);
+        }
+        finally
+        {
+            _callStack.Pop();
+        }
+
+        if (rawResult.IsError) return RuntimeResult.Error(rawResult);
+
+        return RuntimeResult.Normal(rawResult);
     }
 }

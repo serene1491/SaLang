@@ -26,7 +26,7 @@ public readonly struct Error
         var stack = "\nStack trace:\n";
 
         foreach (var frame in ErrorStack)
-            stack += $"    at {frame.FunctionName} in {frame.File}:{frame.Line};{frame.Column}\n";
+            stack += $"    at {frame.FunctionName} in {frame.File}:{frame.Line}:{frame.Column}\n";
 
         return stack + "End atack trace";
     }

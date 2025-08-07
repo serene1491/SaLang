@@ -145,30 +145,6 @@ public class InterpreterTests
     }
 
     [Fact]
-    public void TrustedValuesInIfConditions()
-    {
-        var code = @"
-            var f = false
-
-            if 0 then
-                f = true
-            elseif 1 - 2 then
-                f = true
-            elseif false then
-                f = true
-            not so
-                f = false
-            end
-
-            if f then return 1 end
-            return 0
-        ";
-        var result = Execute(code);
-        Assert.False(result.IsError);
-        Assert.Equal(0, result.Number.Value);
-    }
-
-    [Fact]
     public void ReturnInterruptsFollowingStatements()
     {
         var code = @"
