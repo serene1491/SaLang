@@ -3,6 +3,7 @@ using Xunit;
 using SaLang.Parsing;
 using SaLang.Lexing;
 using SaLang.Runtime;
+using Environment = SaLang.Runtime.Environment;
 namespace SaLang.Tests.Runtime;
 
 public class InterpreterScopeTests
@@ -166,5 +167,80 @@ public class InterpreterScopeTests
         var result = Execute(code);
         Assert.True(result.IsError);
 
+    }
+
+    [Fact]
+    public void Assign_UpdatesParentScope()
+    {
+        var parent = new Environment();
+        parent.Define("out", Value.FromNumber(0)); // define no parent
+
+        var child = new Environment(parent);
+        var res = child.Assign("out", Value.FromNumber(5));
+
+        // o Assign deve retornar sucesso
+        Assert.False(res.IsError);
+        // e o valor no parent deve ter sido atualizado
+        var got = parent.Get("out");
+        Assert.NotNull(got);
+        Assert.Equal(ValueKind.Number, got.Value!.Kind);
+        Assert.Equal(5, got?.Number);
+    }
+
+    [Fact]
+    public void Assign_ToUndefinedVariable_ReturnsError()
+    {
+        var parent = new Environment();
+        var child = new Environment(parent);
+
+        var res = child.Assign("x", Value.FromNumber(1));
+
+        Assert.True(res.IsError);
+        Assert.Null(parent.Get("x"));
+    }
+
+    [Fact]
+    public void Assign_ToReadonlyInParent_ReturnsReadonlyError()
+    {
+        var parent = new Environment();
+        parent.Define("one_hundred", Value.FromNumber(100), isReadonly: true);
+
+        var child = new Environment(parent);
+        var res = child.Assign("one_hundred", Value.FromNumber(200));
+
+        Assert.True(res.IsError);
+        var got = parent.Get("one_hundred");
+        Assert.NotNull(got);
+        Assert.Equal(100, got.Value.Number);
+    }
+
+    [Fact]
+    public void AssignInIf_UpdatesParentVariable()
+    {
+        var code = @"
+            var out = 0
+            if true then
+                out = 5
+            end
+            return out
+        ";
+        var result = Execute(code);
+        Assert.False(result.IsError);
+        Assert.Equal(5, result.Number);
+    }
+
+    [Fact]
+    public void VarInIf_ShadowsParentVariable()
+    {
+        var code = @"
+            var out = 1
+            if true then
+                var out = 2
+            end
+            return out
+        ";
+        var result = Execute(code);
+        Assert.False(result.IsError);
+        Assert.Equal(1, result.Number);
     }
 }

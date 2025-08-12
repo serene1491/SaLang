@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using SaLang.Common;
 using SaLang.Syntax.Nodes;
 using SaLang.Analyzers.Syntax;
+using SaLang.Analyzers;
 namespace SaLang.Parsing;
 
 public partial class Parser
@@ -20,6 +21,12 @@ public partial class Parser
     private readonly string _sourceFile;
     private List<Token> _tokens = new();
     private int cur = 0;
+    private List<Diagnostic> _diagnostics = new();
+
+    public IReadOnlyList<Diagnostic> Diagnostics => _diagnostics.AsReadOnly();
+
+    private void ReportError(string message, Span span)
+        => _diagnostics.Add(new Diagnostic { Message = message, Span = span });
 
     public Parser(string sourceFile = "<memory>")
         => _sourceFile = sourceFile;
@@ -36,6 +43,33 @@ public partial class Parser
             cur++;
             return true;
         }
+        return false;
+    }
+
+    public bool Consume(TokenType expectedType, string expectedLexeme = null)
+    {
+        if (cur >= _tokens.Count)
+        {
+            var tokenEnd = _tokens[^1];
+            var endSpan = new Span(_sourceFile, tokenEnd.Line, tokenEnd.Column);
+            ReportError($"Esperado token {expectedType} mas chegou fim do arquivo.",
+                        endSpan);
+            return false;
+        }
+
+        var token = _tokens[cur];
+        var tokenSpan = new Span(_sourceFile, token.Line, token.Column);
+        if (token.Type == expectedType && (expectedLexeme == null || token.Lexeme == expectedLexeme))
+        {
+            cur++;
+            return true;
+        }
+
+        ReportError($"Esperado token {expectedType}" + 
+                    (expectedLexeme != null ? $" '{expectedLexeme}'" : "") +
+                    $", mas encontrado '{token.Lexeme}'.", tokenSpan);
+
+        cur++;
         return false;
     }
 
@@ -92,7 +126,7 @@ public partial class Parser
         if (Match(TokenType.Keyword, "as")) // Read-only var declaration
         {
             var name = Curr.Lexeme;
-            Match(TokenType.Identifier);
+            Consume(TokenType.Identifier);
             var decl = new VarDeclaration { Expr = expr, Name = name, IsReadonly = true };
             TraceExit();
             return SyntaxResult<Ast>.Ok(decl);

@@ -7,17 +7,16 @@ public partial class Interpreter
 {
     private RuntimeResult EvalTableAccess(TableAccess ta)
     {
-        var tblObjRes = EvalExpr(ta.TableExpr);
-        if (tblObjRes.IsError)
-            return tblObjRes;
-        var tblObj = tblObjRes.Value.Table;
-        if (tblObj != null && tblObj.TryGetValue(ta.Key, out var v))
-            return RuntimeResult.Normal(v);
+        var targetRes = EvalExpr(ta.TableExpr);
+        if (targetRes.IsError) return targetRes;
 
-        return RuntimeResult.Error(Value.FromError(new Error(
-            ErrorCode.RuntimeKeyNotFound,
-            errorStack: [.. _callStack],
-            args: [ta.Key, ExprToString(ta.TableExpr)]
-        )));
+        var target = targetRes.Value;
+        if (target.Kind != ValueKind.Table)
+            return RuntimeResult.Normal(Value.Nil());
+
+        if (target.Table.TryGetValue(ta.Key, out var val))
+            return RuntimeResult.Normal(val);
+
+        return RuntimeResult.Normal(Value.Nil());
     }
 }

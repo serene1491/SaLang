@@ -29,11 +29,9 @@ public class Environment {
             return SemanticResult.Nothing();
         }
         else if (Parent != null)
-        {
-            Parent.Assign(n, v);
-            return SemanticResult.Nothing();
-        }
-        else return SemanticResult.Fail(ErrorCode.SemanticUndefinedVariable);
+            return Parent.Assign(n, v);
+        else
+            return SemanticResult.Fail(ErrorCode.SemanticUndefinedVariable);
     }
 
     public Value? Get(string n)

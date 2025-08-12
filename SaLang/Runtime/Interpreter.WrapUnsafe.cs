@@ -3,7 +3,7 @@ namespace SaLang.Runtime;
 
 public partial class Interpreter
 {
-    private Value WrapUnsafe(Value raw, bool isUnsafe)
+    private static Value WrapUnsafe(Value raw, bool isUnsafe)
     {
         if (!isUnsafe)
             return raw; // Safe functions don't do this
