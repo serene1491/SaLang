@@ -28,7 +28,7 @@ Download the binary for your system from [releases on GitHub](https://github.com
 
 ## Use
 
-### REPL interactivo
+### Interactive REPL
 
 ```bash
 sal
@@ -36,7 +36,7 @@ sal
 [finished] << 0
 > x + 20
 [finished] << 0
->            # ENTER vazio sai do REPL
+>            # Empty ENTER closes REPL
 ```
 
 ### Run file script
@@ -93,9 +93,9 @@ The interpreter first looks in `modules/` next to the script, then in `modules/`
 
 ## Development
 
-* **Pasta `/Lexing`** contains `Lexer.cs`, `TokenType.cs`, `SyntaxToken.cs`.
-* **Pasta `/Parsing`** contains `Parser.cs`, `SyntaxResult.cs`, AST nodes.
-* **Pasta `/Runtime`** contains the main `Interpreter`, built-ins and `Environment`.
+* **Folder `/Lexing`** contains `Lexer.cs`, `TokenType.cs`, `SyntaxToken.cs`.
+* **Folder `/Parsing`** contains `Parser.cs`, `SyntaxResult.cs`, AST nodes.
+* **Folder `/Runtime`** contains the main `Interpreter`, built-ins and `Environment`.
 
 ---
 
@@ -109,4 +109,3 @@ MIT © 2025 \[serene1491\]
 
 - First public beta release.
 - Basic REPL implementation, file execution, modules, and error diagnosis.
-- Support for arithmetic and a bit of logical (just declare true and false so as not to lie)
