@@ -1,9 +1,0 @@
-require ('std')
-
-var t = {}
-
-function t.scream()
-    std.print('AAAAAAAAAAAAAAAAAAAAAAA')
-end
-
-return t
