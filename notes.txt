@@ -1,5 +1,0 @@
-I am dumb to forget this cmds
-
-dotnet publish -c Release -r linux-x64 --self-contained true
-var t = {} unsafe function t.a() if true then return std.error('') not so return true end end var s = t.a() if s.ok then return 'success' not so return 'fail'
-

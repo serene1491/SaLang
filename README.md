@@ -1,4 +1,4 @@
-For this **test release**, where we may have instability and still lack of refinement, I recommend using a semantic **pre-release** version like `0.1.0`
+For this **test release**, where we may have instability and still lack of refinement, I recommend using a semantic **pre-release** version like `0.1.1`
 
 ---
 
@@ -8,7 +8,7 @@ Download the binary for your system from [releases on GitHub](https://github.com
 
 - Linux/macOS:  
   ```bash
-  wget -O salang https://github.com/serene1491/SaLang/releases/download/0.1.0/salang
+  wget -O salang https://github.com/serene1491/SaLang/releases/download/0.1.1/salang
   chmod +x salang
   sudo mv salang /usr/local/bin/sal
   ```
@@ -16,7 +16,7 @@ Download the binary for your system from [releases on GitHub](https://github.com
 * Windows (PowerShell):
 
   ```powershell
-  Invoke-WebRequest -Uri "https://github.com/serene1491/SaLang/releases/download/0.1.0/salang.exe" `
+  Invoke-WebRequest -Uri "https://github.com/serene1491/SaLang/releases/download/0.1.1/salang.exe" `
     -OutFile "$env:USERPROFILE\sal.exe"
   [Environment]::SetEnvironmentVariable("Path", `
     "$env:USERPROFILE;$env:Path",[EnvironmentVariableTarget]::User)
@@ -105,7 +105,7 @@ MIT © 2025 \[serene1491\]
 
 ---
 
-## 0.1.0
+## 0.1.1
 
-- First public beta release.
-- Basic REPL implementation, file execution, modules, and error diagnosis.
+- Second beta release.
+- Statement's body parsing fix
