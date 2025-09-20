@@ -19,7 +19,7 @@ public partial class Parser
 
         Match(TokenType.Keyword, "do");
 
-        var rawBody = ParseBlockBody(alreadyInside: true, "end");
+        var rawBody = ParseBlockBody("end");
         var bodyRes = rawBody.Sequence();
         if (bodyRes.TryGetError(out var err))
             return SyntaxResult<ForInStmt>.Fail(err);

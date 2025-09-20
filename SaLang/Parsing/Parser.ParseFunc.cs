@@ -8,7 +8,7 @@ public partial class Parser
 {
     private SyntaxResult<FuncDecl> ParseFunc(bool isUnsafe)
     {
-        Match(TokenType.Keyword, "function");
+        Consume(TokenType.Keyword, "function");
         TraceEnter("ParseFunc");
         // Capture span of 'function' keyword
         var funcToken = _tokens[cur - 1];
@@ -34,11 +34,11 @@ public partial class Parser
             Match(TokenType.Symbol, ",");
         }
 
-        var rawBody = ParseBlockBody(alreadyInside: false, "end");
+        var rawBody = ParseBlockBody("end");
         var bodyRes = rawBody.Sequence();
         if (bodyRes.TryGetError(out var err))
             return SyntaxResult<FuncDecl>.Fail(err);
-        
+
         Match(TokenType.Keyword, "end");
 
         //Console.WriteLine($"[ParseFunc] {table}.{fname} body statements: {bodyRes.Expect().Count}");

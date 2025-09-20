@@ -62,7 +62,9 @@ public partial class Interpreter
                 var rv = EvalExpr(rs.Expr);
                 if (rv.IsError)
                     return RuntimeResult.Error(rv.Value);
-                return RuntimeResult.Return(rv.Value); ;
+
+                System.Console.WriteLine($"[ReturnStmt] returning -> {Dump(rv.Value)}");
+                return RuntimeResult.Return(rv.Value);
             default:
                 return RuntimeResult.Error(Value.FromError(new Error(
                     ErrorCode.InternalUnsupportedExpressionType, errorStack: [.. _callStack],
@@ -76,19 +78,36 @@ public partial class Interpreter
         return val;
     }
 
-    private RuntimeResult EvalExpr(Ast expr) => expr switch
+    private RuntimeResult EvalExpr(Ast expr)
     {
-        LiteralNumber ln => RuntimeResult.Normal(Value.FromNumber(ln.Value)),
-        LiteralNil       => RuntimeResult.Normal(Value.Nil()),
-        LiteralBool lb   => RuntimeResult.Normal(Value.FromBool(lb.Value)),
-        LiteralString ls => RuntimeResult.Normal(Value.FromString(ls.Value)),
-        Ident id         => ResolveIdentifier(id.Name),
-        TableLiteral tl  => EvalTable(tl),
-        TableAccess ta   => EvalTableAccess(ta),
-        CallExpr ce      => EvalCall(ce),
-        _ => RuntimeResult.Error(Value.FromError(new Error(
-                ErrorCode.InternalUnsupportedExpressionType, errorStack: [.. _callStack],
-                args: [$"{expr.GetType().Name}"]
-            )))
-    };
+        switch (expr)
+        {
+            case LiteralNumber ln:
+                return RuntimeResult.Normal(Value.FromNumber(ln.Value));
+            case LiteralNil:
+                return RuntimeResult.Normal(Value.Nil());
+            case LiteralBool lb:
+                return RuntimeResult.Normal(Value.FromBool(lb.Value));
+            case LiteralString ls:
+                return RuntimeResult.Normal(Value.FromString(ls.Value));
+            case Ident id:
+                return ResolveIdentifier(id.Name);
+            case TableLiteral tl:
+                return EvalTable(tl);
+            case TableAccess ta:
+                return EvalTableAccess(ta);
+            case CallExpr ce:
+            {
+                var val = EvalCall(ce);
+                if (val.IsError) return val;
+                return val;
+            }
+            default:
+                return RuntimeResult.Error(Value.FromError(new Error(
+                    ErrorCode.InternalUnsupportedExpressionType,
+                    errorStack: [.. _callStack],
+                    args: [$"{expr.GetType().Name}"]
+                )));
+        }
+    }
 }

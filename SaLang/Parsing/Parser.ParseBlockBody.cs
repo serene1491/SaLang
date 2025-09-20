@@ -6,42 +6,22 @@ namespace SaLang.Parsing;
 
 public partial class Parser
 {
-    /// <summary>
-    /// Reads from the current token until one of the specified terminators, respecting nested blocks
-    /// </summary>
-    private List<SyntaxResult<Ast>> ParseBlockBody(bool alreadyInside, params string[] terminators)
+    private List<SyntaxResult<Ast>> ParseBlockBody(params string[] terminators)
     {
         var body = new List<SyntaxResult<Ast>>();
-        int depth = alreadyInside? 1 : 0;
-        var terms = new HashSet<string>(terminators) { "end" };
+        var terms = new HashSet<string>(terminators);
 
         while (cur < _tokens.Count)
         {
             if (Curr.Type == TokenType.EOF)
                 break;
 
-            if (Curr.Type == TokenType.Keyword &&
-                (Curr.Lexeme == "function" || Curr.Lexeme == "do" || Curr.Lexeme == "if"))
-            {
-                depth++;
-                body.Add(ParseStmt());
-                continue;
-            }
-
-            if (depth == 0 && Curr.Type == TokenType.Keyword && terms.Contains(Curr.Lexeme))
+            // If current token is one of the terminators, stop and let the caller consume it.
+            if (Curr.Type == TokenType.Keyword && terms.Contains(Curr.Lexeme))
                 break;
 
-            if (Curr.Type == TokenType.Keyword && Curr.Lexeme == "end")
-            {
-                if (depth > 0)
-                {
-                    depth--; cur++;
-                    continue;
-                }
-                else
-                    break;
-            }
-
+            // Otherwise parse a statement. Nested block parsers (if/function/do) will
+            // consume their own 'end' tokens, so we shouldn't try to manage depth here.
             body.Add(ParseStmt());
         }
 

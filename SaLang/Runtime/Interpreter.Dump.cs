@@ -7,7 +7,7 @@ namespace SaLang.Runtime;
 
 public partial class Interpreter
 {
-    private static string Dump(Value v)
+    public static string Dump(Value v)
     {
         switch (v.Kind)
         {

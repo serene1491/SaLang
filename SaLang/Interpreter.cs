@@ -16,6 +16,8 @@ public static partial class Interpreter
 
         var parser = new Parser(filePath);
         var syntaxRes = parser.Parse(tokens);
+        //var syntaxRes = parser.ParseAndPrintTree(tokens);
+        
         if (syntaxRes.IsError){
             syntaxRes.TryGetError(out var err);
             return Value.FromError(err);

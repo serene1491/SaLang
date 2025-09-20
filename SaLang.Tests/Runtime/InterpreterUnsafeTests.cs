@@ -12,8 +12,7 @@ public class InterpreterUnsafeTests
         var tokens = new Lexer(src).Tokenize();
         var prog = new Parser().Parse(tokens).Expect();
         var res = new SaLang.Runtime.Interpreter().Interpret(prog);
-        if (res.IsError)
-            Console.WriteLine(res);
+        if (res.IsError) Console.WriteLine(res);
         return res;
     }
 
@@ -124,7 +123,7 @@ public class InterpreterUnsafeTests
             end
 
             var r1 = c.mayFail(5)
-            var r2 = c.mayFail(0)
+            var r2 = c.mayFail(nil)
             var out1 = nil
             var out2 = nil
 
@@ -157,7 +156,7 @@ public class InterpreterUnsafeTests
                 return std.error('fail')
             end
 
-            var r = c.mayFail(0)
+            var r = c.mayFail(nil)
             var out = 10
 
             if r.ok then
@@ -199,25 +198,21 @@ public class InterpreterUnsafeTests
         Assert.Equal(33, result.Number);
     }
 
-    //[Fact]
-    //public void UnsafeFunction_RawValueHasOkFail()
-    //{
-    //    var code = @"
-    //        var val = 5
-    //        var out = 0
-    //
-    //        if val.ok then
-    //            out = 1
-    //        not so
-    //            out = 2
-    //        end
-    //
-    //        return out
-    //    ";
-    //    var result = Execute(code);
-    //    Assert.True(result.IsError);
-    //    Assert.Contains("[E-R4008]", result.Table);
-    //}
+    [Fact]
+    public void Value_DoesntWrapsLikeUnsafeFunction()
+    {
+        var code = @"
+            var val = 5
+
+            if val.ok then
+                return 1
+            not so
+                return 0
+            end
+        ";
+        var result = Execute(code);
+        Assert.Equal(0, result.Number);
+    }
 
     [Fact]
     public void UnsafeFunction_OkCanBeString()

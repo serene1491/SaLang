@@ -15,7 +15,7 @@ public partial class Parser
             return SyntaxResult<IfStmt>.Fail(err);
         
         Match(TokenType.Keyword, "then");
-        var rawThenStmts = ParseBlockBody(alreadyInside: false, "elseif", "else", "not", "end");
+        var rawThenStmts = ParseBlockBody("elseif", "else", "not", "end");
         var thenbodyRes = rawThenStmts.Sequence();
         
         if (thenbodyRes.TryGetError(out var tErr))
@@ -32,7 +32,7 @@ public partial class Parser
                 return SyntaxResult<IfStmt>.Fail(effErr);
 
             Match(TokenType.Keyword, "then");
-            var rawElifStmts = ParseBlockBody(alreadyInside: false, "elseif", "else", "not", "end");
+            var rawElifStmts = ParseBlockBody("elseif", "else", "not", "end");
             var elifbodyRes = rawElifStmts.Sequence();
 
             if (elifbodyRes.TryGetError(out var fErr))
@@ -48,7 +48,7 @@ public partial class Parser
         if (Match(TokenType.Keyword, "else") || Match(TokenType.Keyword, "not"))
         {
             Match(TokenType.Keyword, "so");
-            var rawElseStmts = ParseBlockBody(alreadyInside: false, "end");
+            var rawElseStmts = ParseBlockBody("end");
             var elseBodyRes = rawElseStmts.Sequence();
             if (elseBodyRes.TryGetError(out var eErr))
                 return SyntaxResult<IfStmt>.Fail(eErr);

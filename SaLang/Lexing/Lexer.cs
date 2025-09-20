@@ -67,7 +67,7 @@ public class Lexer
     }
 
     private static readonly string[] TwoCharSymbols = [
-        "..", "==", "<=", ">=", "!=", "~=", "||", "&&"
+        "..", "==", "<=", ">=", "!=", "~=", "||", "&&", "++", "--"
     ];
 
     private void ReadSymbol()

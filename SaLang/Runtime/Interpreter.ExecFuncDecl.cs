@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+using SaLang.Analyzers;
 using SaLang.Analyzers.Runtime;
 using SaLang.Common;
 using SaLang.Syntax.Nodes;
@@ -44,6 +44,7 @@ public partial class Interpreter
                     ? execRes.Value
                     : Value.Nil();
 
+                System.Console.WriteLine($"[ExecFuncDecl] function {fd.Table}.{fd.Name} finishing raw={Dump(raw)} unsafe={fd.Unsafe}");
                 return WrapUnsafe(raw, fd.Unsafe);
             }
             finally
@@ -52,13 +53,21 @@ public partial class Interpreter
                 _callStack.Pop();
             }
         });
-
+        
         var tblRes = ResolveIdentifier(fd.Table);
         if (tblRes.IsError)
             return tblRes;
 
-        var tbl = tblRes.Value.Table ?? new Dictionary<string, Value>();
-        _env.Define(fd.Table, Value.FromTable(tbl));
+        if (tblRes.Value.Kind != ValueKind.Table || tblRes.Value.Table == null)
+        {
+            return RuntimeResult.Error(Value.FromError(new Error(
+                ErrorCode.RuntimeInvalidFunctionCall,
+                errorStack: [.. _callStack],
+                args: [$"'{fd.Table}' is not a table"]
+            )));
+        }
+
+        var tbl = tblRes.Value.Table;
         tbl[fd.Name] = Value.FromFunc(func);
 
         return RuntimeResult.Nothing();

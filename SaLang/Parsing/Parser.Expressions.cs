@@ -132,6 +132,42 @@ public partial class Parser
                     )
                 });
         }
+        else if (Match(TokenType.Symbol, "++"))
+        {
+            var operandRes = ParseUnary();
+            if (!operandRes.TryUnwrap(out var operand, out var fail))
+                return fail;
+            
+            return SyntaxResult<Ast>.Ok(
+                new CallExpr
+                {
+                    Callee = new Ident { Name = "__sum" },
+                    Args = new List<Ast> { operand, new LiteralNumber(){Value = 1} },
+                    Span = new Span(
+                        _sourceFile,
+                        opToken.Line,
+                        opToken.Column
+                    )
+                });
+        }
+        else if (Match(TokenType.Symbol, "--"))
+        {
+            var operandRes = ParseUnary();
+            if (!operandRes.TryUnwrap(out var operand, out var fail))
+                return fail;
+            
+            return SyntaxResult<Ast>.Ok(
+                new CallExpr
+                {
+                    Callee = new Ident { Name = "__sub" },
+                    Args = new List<Ast> { operand, new LiteralNumber(){Value = 1} },
+                    Span = new Span(
+                        _sourceFile,
+                        opToken.Line,
+                        opToken.Column
+                    )
+                });
+        }
         return ParsePrimary();
     }
 
